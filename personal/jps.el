@@ -147,6 +147,34 @@
   (dap-auto-configure-mode)
   (require 'dap-go))
 
+;; Rust development
+(use-package rust-mode
+  :hook (rust-mode . eglot-ensure))
+
+(use-package eglot
+  :hook ((rust-mode . eglot-ensure)
+         (go-mode . eglot-ensure)
+         (python-mode . eglot-ensure)))
+
+(use-package cargo
+  :hook (rust-mode . cargo-minor-mode))
+
+(use-package rust-playground)
+
+;; Python development
+(use-package pyvenv
+  :config (pyvenv-mode 1))
+
+(use-package blacken
+  :hook (python-mode . blacken-mode))
+
+;; Universal improvements
+(use-package flycheck
+  :init (global-flycheck-mode))
+
+(use-package yasnippet
+  :config (yas-global-mode))
+
 ;; Company mode for completion
 (use-package company
   :defer 0.1

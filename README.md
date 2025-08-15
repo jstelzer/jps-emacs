@@ -79,7 +79,8 @@ The setup script creates symlinks from `~/.emacs.d/` to your config files:
 | `M-p`                                      | Project file finder         |
 | `C-S-p`                                    | Search in project (ripgrep) |
 | `C-x b`                                    | Switch buffers              |
-| `C-c C-'`                                  | Claude Code Menu                            |
+| `C-c C-'`                                  | Claude Code Menu            |
+|                                            |                             |
 
 ## Package Management
 
