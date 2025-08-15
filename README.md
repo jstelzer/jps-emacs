@@ -68,19 +68,18 @@ The setup script creates symlinks from `~/.emacs.d/` to your config files:
 
 ## Key Bindings
 
-| Key                                        | Action                      |
-| ----------+------------------------------- |                             |
-| `C-c d`                                    | Kill line (vi-style dd)     |
-| `C-c j`                                    | Format JSON region          |
-| `C-c J`                                    | Flatten JSON to one line    |
-| `C-c t`                                    | Insert timestamp            |
-| `C-c w`                                    | Cleanup whitespace          |
-| `C-c fd`                                   | Diff buffer with file       |
-| `M-p`                                      | Project file finder         |
-| `C-S-p`                                    | Search in project (ripgrep) |
-| `C-x b`                                    | Switch buffers              |
-| `C-c C-'`                                  | Claude Code Menu            |
-|                                            |                             |
+| Key         | Action                      |
+|-------------|------------------------------|
+| `C-c d`     | Kill line (vi-style dd)     |
+| `C-c j`     | Format JSON region          |
+| `C-c J`     | Flatten JSON to one line    |
+| `C-c t`     | Insert timestamp            |
+| `C-c w`     | Cleanup whitespace          |
+| `C-c fd`    | Diff buffer with file       |
+| `M-p`       | Project file finder         |
+| `C-S-p`     | Search in project (ripgrep) |
+| `C-x b`     | Switch buffers              |
+| `C-c C-'`   | Claude Code Menu            |
 
 ## Package Management
 
