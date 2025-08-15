@@ -1,3 +1,6 @@
+;;; init.el --- Refined config -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
 ;; Bootstrap straight.el for package management
 ;; This is the ONLY package manager we use - no package.el
 (defvar bootstrap-version)
@@ -46,3 +49,5 @@
  ;; If there is more than one, they won't work right.
  )
 (add-to-list 'image-types 'svg)
+
+;;; init.el ends here
