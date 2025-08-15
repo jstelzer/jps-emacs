@@ -267,13 +267,6 @@
 (electric-pair-mode t)
 (setq mouse-sel-mode t)
 
-;; IRC configuration
-(setq rcirc-server-alist '(("irc.oftc.net"
-                            :nick "Fah"
-                            :username "Fah"
-                            :encryption tls
-                            :port 6697)))
-
 ;; File management
 (global-auto-revert-mode 1)
 (setq global-auto-revert-non-file-buffers t
