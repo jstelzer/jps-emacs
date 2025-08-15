@@ -1,0 +1,52 @@
+# Emacs temporary and auto-generated files
+*~
+*.elc
+\#*\#
+.\#*
+.DS_Store
+
+# Package management directories (these will be recreated)
+elpa/
+straight/
+eln-cache/
+
+# EXCEPT: Keep the straight.el lockfile for reproducible package versions
+!straight/versions/
+
+# Auto-save and backup files
+auto-save/
+saves/
+auto-save-list/
+backups/
+
+# Session and history files
+ac-comphist.dat
+history
+transient/
+projects
+recentf
+places
+bookmarks
+ido.last
+smex-items
+
+# Cache and temporary files
+url/
+tramp
+network-security.data
+request/
+
+# Custom file (contains machine-specific customizations)
+custom.el
+
+# Flycheck temporary files
+flycheck_*.el
+
+# Language server and completion caches
+.lsp-session*
+lsp/
+.dap-breakpoints
+
+# Other temporary files
+*.dat
+*.log
