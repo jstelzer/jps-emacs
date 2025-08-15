@@ -14,7 +14,12 @@
 
 ;; Basic UI settings
 (when (display-graphic-p)
-  (tool-bar-mode -1))
+  (tool-bar-mode -1)
+  ;; Set default font
+  (set-face-attribute 'default nil
+                      :family "MesloLGS NF"
+                      :height 120))
+
 
 ;; Start server only in interactive mode
 (unless noninteractive
@@ -78,36 +83,34 @@
   (interactive)
   (insert (format-time-string "%a %b %d %H:%M:%S %Y")))
 
-(defun jps-turn-off-os-x-opacity ()
-  "Turn off macOS window transparency."
+(defun jps-toggle-transparency ()
+  "Toggle window transparency on/off."
   (interactive)
-  (set-frame-parameter nil 'alpha '(100)))
+  (let ((current (frame-parameter nil 'alpha-background)))
+    (if (and current (< current 100))
+        (set-frame-parameter nil 'alpha-background 100)
+      (set-frame-parameter nil 'alpha-background 75))))
 
-(defun jps-configure-os-x ()
-  "Configure macOS-specific options."
+(defun jps-configure-platform ()
+  "Configure platform-specific options."
   (interactive)
-  (message "Configuring macOS...")
-  (when (display-graphic-p)
-    (setq default-input-method "MacOSX")
-    (set-frame-parameter nil 'alpha '(80 80))
-    
-    ;; Smooth scrolling for trackpad/mouse
-    (dolist (event '([wheel-down] [double-wheel-down] [triple-wheel-down]))
-      (global-set-key event (lambda () (interactive) (scroll-down 1))))
-    (dolist (event '([wheel-up] [double-wheel-up] [triple-wheel-up]))
-      (global-set-key event (lambda () (interactive) (scroll-up 1)))))
-  
-  (jps-add-path "/usr/local/bin"))
+  (when (eq system-type 'darwin)
+    (message "Configuring macOS...")
+    (when (display-graphic-p)
+      (setq default-input-method "MacOSX")
+      ;; Smooth scrolling for trackpad/mouse
+      (dolist (event '([wheel-down] [double-wheel-down] [triple-wheel-down]))
+        (global-set-key event (lambda () (interactive) (scroll-down 1))))
+      (dolist (event '([wheel-up] [double-wheel-up] [triple-wheel-up]))
+        (global-set-key event (lambda () (interactive) (scroll-up 1)))))
+    (jps-add-path "/usr/local/bin")))
 
 ;;; ============================================================================
 ;;; Platform Configuration
 ;;; ============================================================================
 
-(cond
- ((eq system-type 'darwin)
-  (jps-configure-os-x))
- (t
-  (message "Non-macOS platform detected")))
+;; Configure platform-specific settings
+(jps-configure-platform)
 
 ;; Add home bin directories to PATH
 (dolist (path (list (concat (getenv "HOME") "/bin")
@@ -125,6 +128,12 @@
          (go-mode . eglot-ensure)
          (python-mode . eglot-ensure)))
 
+;; Docker
+(use-package dockerfile-mode)
+(use-package yaml-mode)
+(add-to-list 'auto-mode-alist '("\\.yaml$" . yaml-mode))
+(add-to-list 'auto-mode-alist '("\\.yml$" . yaml-mode))
+(add-to-list 'auto-mode-alist '("Dockerfile$" dockerfile-mode))
 ;; Go development
 (use-package go-mode
   :hook (before-save . gofmt-before-save))
@@ -244,7 +253,7 @@
 (global-set-key (kbd "C-c J") #'jps-json-flatten)
 (global-set-key (kbd "C-c L") (lambda () (interactive) (load-theme 'adwaita)))
 (global-set-key (kbd "C-c W") #'whitespace-mode)
-(global-set-key (kbd "C-c X") #'jps-turn-off-os-x-opacity)
+(global-set-key (kbd "C-c X") #'jps-toggle-transparency)
 (global-set-key (kbd "C-c a") #'align-regexp)
 (global-set-key (kbd "C-c d") #'jps-kill-line)
 (global-set-key (kbd "C-c f d") #'jps-diff-buffer)
@@ -253,7 +262,7 @@
 (global-set-key (kbd "C-c s") #'sort-lines)
 (global-set-key (kbd "C-c t") #'jps-generate-timestamp)
 (global-set-key (kbd "C-c w") #'whitespace-cleanup)
-(global-set-key (kbd "C-c x") #'jps-configure-os-x)
+(global-set-key (kbd "C-c x") #'jps-configure-platform)
 
 ;;; ============================================================================
 ;;; Additional Configuration
@@ -288,5 +297,6 @@
 ;; Session management
 (savehist-mode 1)
 
+(jps-toggle-transparency)
 (provide 'jps)
 ;;; jps.el ends here
