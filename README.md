@@ -122,15 +122,18 @@ The configuration follows standard Emacs project.el conventions while adding use
 - **Go**: Detects `go.mod` for Go projects
 - **Rust**: Detects `Cargo.toml` for Rust projects  
 - **Python**: Detects `pytest.ini`, `pyproject.toml`, or `tox.ini` for Python projects
-- **Make**: Falls back to `Makefile` for generic projects
+- **Just**: Detects `justfile`, `Justfile`, or `.justfile` for task automation
+- **Make**: Falls back to `Makefile` for compilation projects
 
 ### Project Dashboard Commands
 All commands run from the project root directory and use intelligent defaults:
 
-- **Test (`C-x p T`)**: `go test ./...`, `cargo test`, `pytest -q`, or `make test`
-- **Build (`C-x p B`)**: `go build ./...`, `cargo build`, `python -m build`, or `make`
-- **Deploy (`C-x p D`)**: Looks for `make deploy` target or `scripts/deploy.sh`
+- **Test (`C-x p T`)**: `go test ./...`, `cargo test`, `pytest -q`, `just test`, or `make test`
+- **Build (`C-x p B`)**: `go build ./...`, `cargo build`, `python -m build`, `just build`, or `make`
+- **Deploy (`C-x p D`)**: Looks for `just deploy` recipe, `make deploy` target, or `scripts/deploy.sh`
 - **Recompile (`C-x p r`)**: Re-runs the last project command
+
+Priority order: Language-specific tools → Just (task automation) → Make (compilation) → Custom scripts
 
 The project dashboard integrates with which-key to show helpful command descriptions.
 

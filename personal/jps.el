@@ -227,6 +227,10 @@
 
 (use-package vterm)
 
+;; Git integration
+(use-package magit
+  :bind (("C-x g" . magit-status)))
+
 ;; Claude Code IDE integration
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
@@ -286,6 +290,7 @@
            ((file-exists-p (expand-file-name "go.mod" root)) "go test ./...")
            ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo test")
            ((jps--file-exists-any root "pytest.ini" "pyproject.toml" "tox.ini") "pytest -q")
+           ((jps--file-exists-any root "justfile" "Justfile" ".justfile") "just test")
            ((file-exists-p (expand-file-name "Makefile" root)) "make test")
            (t (read-shell-command "Test command: ")))))
     (jps--run-in-project cmd)))
@@ -299,17 +304,30 @@
            ((file-exists-p (expand-file-name "go.mod" root)) "go build ./...")
            ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo build")
            ((jps--file-exists-any root "pyproject.toml" "setup.cfg" "setup.py") "python -m build")
+           ((jps--file-exists-any root "justfile" "Justfile" ".justfile") "just build")
            ((file-exists-p (expand-file-name "Makefile" root)) "make")
            (t (read-shell-command "Build command: ")))))
     (jps--run-in-project cmd)))
 
 (defun jps-project-deploy ()
-  "Best-guess deploy: prefer Makefile 'deploy', then scripts/deploy.sh."
+  "Best-guess deploy: prefer justfile 'deploy', then Makefile 'deploy', then scripts/deploy.sh."
   (interactive)
   (let* ((root (jps--project-root))
+         (just-files (seq-filter 
+                      (lambda (f) (file-exists-p (expand-file-name f root)))
+                      '("justfile" "Justfile" ".justfile")))
          (mk (expand-file-name "Makefile" root))
          (script (expand-file-name "scripts/deploy.sh" root))
          (cmd (cond
+               ;; Check for justfile with deploy recipe
+               ((and just-files
+                     (let ((jf (expand-file-name (car just-files) root)))
+                       (with-temp-buffer
+                         (insert-file-contents jf)
+                         (goto-char (point-min))
+                         (re-search-forward "^deploy\\s*:" nil t))))
+                "just deploy")
+               ;; Check for Makefile with deploy target
                ((and (file-exists-p mk)
                      (with-temp-buffer
                        (insert-file-contents mk)
