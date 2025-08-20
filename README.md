@@ -7,6 +7,8 @@ A clean, portable Emacs configuration designed to work across macOS and Linux sy
 - **Platform-aware**: Automatically detects macOS/Linux and adjusts accordingly
 - **Console/GUI support**: Works seamlessly in terminal and graphical environments  
 - **Modern packages**: Uses straight.el, vertico, consult, LSP, and more
+- **Project Dashboard**: Full project management using standard Emacs conventions (`C-x p`)
+- **Smart Commands**: Auto-detects project type for build/test/deploy operations
 - **Clean separation**: Only essential config files are versioned
 - **Easy setup**: One-command installation on new systems
 - **Online**: This whole setup is predicated on being able to fetch deps from the internet
@@ -68,6 +70,7 @@ The setup script creates symlinks from `~/.emacs.d/` to your config files:
 
 ## Key Bindings
 
+### Global Bindings
 | Key         | Action                      |
 |-------------|------------------------------|
 | `C-c d`     | Kill line (vi-style dd)     |
@@ -76,10 +79,25 @@ The setup script creates symlinks from `~/.emacs.d/` to your config files:
 | `C-c t`     | Insert timestamp            |
 | `C-c w`     | Cleanup whitespace          |
 | `C-c fd`    | Diff buffer with file       |
-| `M-p`       | Project file finder         |
 | `C-S-p`     | Search in project (ripgrep) |
 | `C-x b`     | Switch buffers              |
 | `C-c C-'`   | Claude Code Menu            |
+
+### Project Dashboard (C-x p ...)
+Uses standard Emacs project.el conventions with uppercase letters for custom commands:
+
+| Key         | Action                      |
+|-------------|------------------------------|
+| `C-x p f`   | Find file in project        |
+| `C-x p p`   | Switch projects             |
+| `C-x p R`   | Ripgrep project search      |
+| `C-x p S`   | Open shell (vterm)          |
+| `C-x p M`   | Magit status                |
+| `C-x p T`   | Smart test command          |
+| `C-x p B`   | Smart build command         |
+| `C-x p D`   | Smart deploy command        |
+| `C-x p C`   | Open docker compose file    |
+| `C-x p r`   | Recompile last command      |
 
 ## Package Management
 
@@ -95,6 +113,26 @@ Uses **`straight.el` exclusively** for reliable, reproducible package management
 - Faster startup (no package activation overhead)
 - Better debugging (source repos available locally)
 - Zero maintenance (no `package-refresh-contents` needed)
+
+## Project Management
+
+The configuration follows standard Emacs project.el conventions while adding useful extensions:
+
+### Smart Project Detection
+- **Go**: Detects `go.mod` for Go projects
+- **Rust**: Detects `Cargo.toml` for Rust projects  
+- **Python**: Detects `pytest.ini`, `pyproject.toml`, or `tox.ini` for Python projects
+- **Make**: Falls back to `Makefile` for generic projects
+
+### Project Dashboard Commands
+All commands run from the project root directory and use intelligent defaults:
+
+- **Test (`C-x p T`)**: `go test ./...`, `cargo test`, `pytest -q`, or `make test`
+- **Build (`C-x p B`)**: `go build ./...`, `cargo build`, `python -m build`, or `make`
+- **Deploy (`C-x p D`)**: Looks for `make deploy` target or `scripts/deploy.sh`
+- **Recompile (`C-x p r`)**: Re-runs the last project command
+
+The project dashboard integrates with which-key to show helpful command descriptions.
 
 ## Customization
 

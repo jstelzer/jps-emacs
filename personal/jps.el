@@ -20,7 +20,6 @@
                       :family "MesloLGS NF"
                       :height 120))
 
-
 ;; Start server only in interactive mode
 (unless noninteractive
   (server-start))
@@ -40,7 +39,7 @@
 ;; Interface improvements
 (fset 'yes-or-no-p 'y-or-n-p)
 (setq-default indent-tabs-mode nil)
-(setq c-default-style "user" 
+(setq c-default-style "user"
       c-basic-offset 4)
 
 ;;; ============================================================================
@@ -60,21 +59,22 @@
   (diff-buffer-with-file (current-buffer)))
 
 (defun jps-add-path (path-element)
-  "Add the specified path element to the PATH and exec-path."
-  (interactive)
+  "Add PATH-ELEMENT to PATH and exec-path."
+  (interactive "DAdd to PATH: ")
   (when (and (file-directory-p path-element)
-             (not (string-match path-element (getenv "PATH"))))
+             (not (string-match (regexp-quote (expand-file-name path-element))
+                                (getenv "PATH"))))
     (setenv "PATH" (concat (expand-file-name path-element)
                            path-separator (getenv "PATH")))
     (setq exec-path (parse-colon-path (getenv "PATH")))))
 
 (defun jps-json-format (b e)
-  "Format the selected region as JSON using python json.tool."
+  "Format region B..E as JSON using python json.tool."
   (interactive "r")
   (shell-command-on-region b e "python -m json.tool" (current-buffer) t))
 
 (defun jps-json-flatten (b e)
-  "Flatten the selected region into one line of JSON."
+  "Flatten region B..E into one line of JSON."
   (interactive "r")
   (shell-command-on-region b e "perl -i -pe 's/\\n//g; s/\\s+/ /g;'" (current-buffer) t))
 
@@ -109,7 +109,6 @@
 ;;; Platform Configuration
 ;;; ============================================================================
 
-;; Configure platform-specific settings
 (jps-configure-platform)
 
 ;; Add home bin directories to PATH
@@ -122,41 +121,35 @@
 ;;; Development Environment
 ;;; ============================================================================
 
-;; Language Server Protocol via Eglot
+;; LSP via Eglot
 (use-package eglot
   :hook ((rust-mode . eglot-ensure)
          (go-mode . eglot-ensure)
          (python-mode . eglot-ensure)))
 
-;; Docker
+;; Docker/YAML modes
 (use-package dockerfile-mode)
 (use-package yaml-mode)
-(add-to-list 'auto-mode-alist '("\\.yaml$" . yaml-mode))
-(add-to-list 'auto-mode-alist '("\\.yml$" . yaml-mode))
-(add-to-list 'auto-mode-alist '("Dockerfile$" dockerfile-mode))
-;; Go development
+(add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-mode))
+(add-to-list 'auto-mode-alist '("\\`Dockerfile\\'" . dockerfile-mode))
+
+;; Go
 (use-package go-mode
   :hook (before-save . gofmt-before-save))
 
-;; Rust development
+;; Rust
 (use-package rust-mode)
 (use-package cargo
   :hook (rust-mode . cargo-minor-mode))
 (use-package rust-playground)
 
-;; Python development
-(use-package pyvenv
-  :config (pyvenv-mode 1))
-(use-package blacken
-  :hook (python-mode . blacken-mode))
+;; Python venv/format
+(use-package pyvenv :config (pyvenv-mode 1))
+(use-package blacken :hook (python-mode . blacken-mode))
 
-;; Code quality and completion
-(use-package flycheck
-  :init (global-flycheck-mode))
-
-(use-package yasnippet
-  :config (yas-global-mode))
-
+;; Code quality & completion
+(use-package flycheck :init (global-flycheck-mode))
+(use-package yasnippet :config (yas-global-mode))
 (use-package company
   :defer 0.1
   :config
@@ -170,27 +163,25 @@
 ;;; Modern Emacs UI
 ;;; ============================================================================
 
-;; Completion framework
-(use-package vertico
-  :init (vertico-mode 1))
-
+;; Completion stack
+(use-package vertico :init (vertico-mode 1))
 (use-package orderless
   :init
   (setq completion-styles '(orderless basic)
         completion-category-defaults nil
         completion-category-overrides '((file (styles . (partial-completion))))))
 
-(use-package marginalia
-  :init (marginalia-mode 1))
+(use-package marginalia :init (marginalia-mode 1))
 
-;; Enhanced navigation and search
+;; Consult — no M-p override; keep stock project keys
 (use-package consult
-  :bind (("M-p" . project-find-file)
-         ("C-S-p" . consult-ripgrep)
+  :bind (("C-S-p" . consult-ripgrep)
          ("C-x b" . consult-buffer))
   :init
-  (setq consult-find-command "fd --hidden --follow --exclude .git --color=never -t f \\S- || find . -type f"))
+  (setq consult-find-command
+        "fd --hidden --follow --exclude .git --color=never -t f \\S- || find . -type f"))
 
+;; Embark
 (use-package embark
   :bind (("C-." . embark-act)
          ("C-;" . embark-dwim)
@@ -202,13 +193,13 @@
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
-;; Project management
+;; Project: use the stock C-x p prefix (Emacs 28+)
 (use-package project
   :straight nil
   :init
   (setq project-vc-extra-root-markers '(".git")))
 
-;; File tree
+;; Treemacs
 (use-package treemacs
   :bind (("C-x t t" . treemacs)
          ("C-x t 1" . treemacs-delete-other-windows)
@@ -225,7 +216,7 @@
   :after treemacs
   :config (treemacs-project-follow-mode 1))
 
-;; Key discovery and help
+;; Which-Key
 (use-package which-key
   :init (which-key-mode 1)
   :custom (which-key-idle-delay 0.4))
@@ -234,7 +225,6 @@
 ;;; External Tools Integration
 ;;; ============================================================================
 
-;; Terminal emulator
 (use-package vterm)
 
 ;; Claude Code IDE integration
@@ -245,7 +235,135 @@
   (claude-code-ide-emacs-tools-setup))
 
 ;;; ============================================================================
-;;; Key Bindings
+;;; Project Dashboard (C-x p …)
+;;; ============================================================================
+
+(require 'project)
+(defvar jps--last-compile-cmd nil)
+
+(defun jps--project-root ()
+  (when-let* ((proj (project-current t)))
+    (expand-file-name (project-root proj))))
+
+(defun jps--run-in-project (cmd)
+  "Run shell CMD from the project root using `compile'."
+  (interactive "sRun in project: ")
+  (let ((default-directory (jps--project-root)))
+    (setq jps--last-compile-cmd cmd)
+    (compile cmd)))
+
+(defun jps-project-ripgrep ()
+  "Ripgrep the project using consult-ripgrep."
+  (interactive)
+  (let ((default-directory (jps--project-root)))
+    (consult-ripgrep default-directory)))
+
+(defun jps-project-vterm ()
+  "Open a vterm in the project root."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (name (format "*vterm: %s*" (file-name-nondirectory (directory-file-name root)))))
+    (let ((default-directory root))
+      (vterm (generate-new-buffer-name name)))))
+
+(defun jps-project-magit ()
+  "Open Magit status in the project."
+  (interactive)
+  (if (require 'magit nil t)
+      (let ((default-directory (jps--project-root)))
+        (magit-status-setup-buffer default-directory))
+    (user-error "Magit not installed")))
+
+(defun jps--file-exists-any (root &rest names)
+  (seq-some (lambda (n) (file-exists-p (expand-file-name n root))) names))
+
+(defun jps-project-test ()
+  "Smart test command based on project type."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (cmd
+          (cond
+           ((file-exists-p (expand-file-name "go.mod" root)) "go test ./...")
+           ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo test")
+           ((jps--file-exists-any root "pytest.ini" "pyproject.toml" "tox.ini") "pytest -q")
+           ((file-exists-p (expand-file-name "Makefile" root)) "make test")
+           (t (read-shell-command "Test command: ")))))
+    (jps--run-in-project cmd)))
+
+(defun jps-project-build ()
+  "Smart build command based on project type."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (cmd
+          (cond
+           ((file-exists-p (expand-file-name "go.mod" root)) "go build ./...")
+           ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo build")
+           ((jps--file-exists-any root "pyproject.toml" "setup.cfg" "setup.py") "python -m build")
+           ((file-exists-p (expand-file-name "Makefile" root)) "make")
+           (t (read-shell-command "Build command: ")))))
+    (jps--run-in-project cmd)))
+
+(defun jps-project-deploy ()
+  "Best-guess deploy: prefer Makefile 'deploy', then scripts/deploy.sh."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (mk (expand-file-name "Makefile" root))
+         (script (expand-file-name "scripts/deploy.sh" root))
+         (cmd (cond
+               ((and (file-exists-p mk)
+                     (with-temp-buffer
+                       (insert-file-contents mk)
+                       (goto-char (point-min))
+                       (re-search-forward "^deploy\\s*:" nil t)))
+                "make deploy")
+               ((file-exists-p script) "scripts/deploy.sh")
+               (t (read-shell-command "Deploy command: ")))))
+    (jps--run-in-project cmd)))
+
+(defun jps-project-recompile ()
+  "Re-run the last project compile command."
+  (interactive)
+  (if jps--last-compile-cmd
+      (jps--run-in-project jps--last-compile-cmd)
+    (user-error "No previous project command")))
+
+(defun jps-project-open-compose ()
+  "Open docker compose file in project if present."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (cand (seq-filter
+                #'file-exists-p
+                (mapcar (lambda (n) (expand-file-name n root))
+                        '("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")))))
+    (if cand
+        (find-file (car cand))
+      (user-error "No docker compose file found in project"))))
+
+;; Bind under C-x p … (use uppercase to avoid clobbering stock keys)
+(define-key project-prefix-map (kbd "R") #'jps-project-ripgrep)   ;; R = Ripgrep
+(define-key project-prefix-map (kbd "S") #'jps-project-vterm)     ;; S = Shell (vterm)
+(define-key project-prefix-map (kbd "M") #'jps-project-magit)     ;; M = Magit
+(define-key project-prefix-map (kbd "T") #'jps-project-test)      ;; T = Test
+(define-key project-prefix-map (kbd "B") #'jps-project-build)     ;; B = Build
+(define-key project-prefix-map (kbd "D") #'jps-project-deploy)    ;; D = Deploy
+(define-key project-prefix-map (kbd "C") #'jps-project-open-compose) ;; C = Compose
+(define-key project-prefix-map (kbd "r") #'jps-project-recompile) ;; r = re-run last compile
+
+;; Which-Key labels for the dashboard
+(with-eval-after-load 'which-key
+  (which-key-add-keymap-based-replacements
+    project-prefix-map
+    "R" "ripgrep"
+    "S" "shell (vterm)"
+    "M" "magit status"
+    "T" "test"
+    "B" "build"
+    "D" "deploy"
+    "C" "open compose"
+    "r" "recompile last"))
+
+;;; ============================================================================
+;;; Key Bindings (global quality-of-life)
 ;;; ============================================================================
 
 (global-set-key (kbd "C-c D") (lambda () (interactive) (load-theme 'manoj-dark)))
@@ -269,7 +387,7 @@
 ;;; ============================================================================
 
 ;; Org mode
-(add-to-list 'auto-mode-alist '("\\.org$" . org-mode))
+(add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
 
 ;; Default theme and UI
 (load-theme 'manoj-dark t)
@@ -282,12 +400,11 @@
       revert-without-query '(".*")
       auto-save-file-name-transforms
       `((".*" ,(expand-file-name "~/.emacs.d/auto-save/") t)))
-
 (make-directory "~/.emacs.d/auto-save/" t)
 
-;; Cleanup old auto-save files periodically
+;; Cleanup auto-save files periodically (every 10 minutes, nuke contents)
 (run-with-idle-timer
- 600 t  ;; Every 10 minutes
+ 600 t
  (lambda ()
    (let ((dir "~/.emacs.d/auto-save/"))
      (when (file-exists-p dir)
