@@ -75,9 +75,16 @@
   (shell-command-on-region b e "python -m json.tool" (current-buffer) t))
 
 (defun jps-json-flatten (b e)
-  "Flatten region B..E into one line of JSON."
+  "Flatten region B..E into a single-line, valid JSON."
   (interactive "r")
-  (shell-command-on-region b e "perl -i -pe 's/\\n//g; s/\\s+/ /g;'" (current-buffer) t))
+  (shell-command-on-region
+   b e "python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(\",\", \":\")))'"
+   (current-buffer) t))
+
+;; (defun jps-json-flatten (b e)
+;;   "Flatten region B..E into one line of JSON."
+;;   (interactive "r")
+;;   (shell-command-on-region b e "perl -pe 's/\\n//g; s/\\s+/ /g;'" (current-buffer) t))
 
 (defun jps-generate-timestamp ()
   "Insert a timestamp at point."
@@ -123,6 +130,12 @@
 ;;; ============================================================================
 
 ;; LSP via Eglot
+;; Bigger pipe for language servers (Emacs 27+)
+(setq read-process-output-max (* 1024 1024)) ; 1MB
+;; Less chatty echo area from Eglot
+(with-eval-after-load 'eglot
+  (setq eglot-events-buffer-size 0))
+
 (use-package eglot
   :straight t
   :hook ((rust-mode . eglot-ensure)
@@ -444,6 +457,7 @@
 (define-key project-prefix-map (kbd "N") #'jps-project-notes)     ;; N = Notes
 (define-key project-prefix-map (kbd "r") #'jps-project-recompile) ;; r = re-run last compile
 
+
 ;; Which-Key labels for the dashboard
 (with-eval-after-load 'which-key
   (which-key-add-keymap-based-replacements
@@ -489,7 +503,9 @@
 ;; Default theme and UI
 (load-theme 'manoj-dark t)
 (electric-pair-mode t)
-(setq mouse-sel-mode t)
+(delete-selection-mode 1)
+(setq mouse-yank-at-point t)
+
 
 ;; File management
 (global-auto-revert-mode 1)
@@ -503,13 +519,44 @@
 (run-with-idle-timer
  600 t
  (lambda ()
-   (let ((dir "~/.emacs.d/auto-save/"))
+   (let* ((dir "~/.emacs.d/auto-save/")
+          (now (float-time)))
      (when (file-exists-p dir)
-       (mapc #'delete-file
-             (directory-files dir t "^[^.]"))))))
+       (dolist (f (directory-files dir t "^[^.]"))
+         (when (and (file-regular-p f)
+                    (> (- now (float-time (file-attribute-modification-time (file-attributes f))))
+                       (* 7 24 60 60))) ; older than 7 days
+           (ignore-errors (delete-file f))))))))
 
 ;; Session management
 (savehist-mode 1)
+;; Make TABs consistent in views that still show them
+(setq-default tab-width 4)
+
+;; Yank/kill ring history survives longer Emacs sessions
+(save-place-mode 1)  ;; reopen files at last cursor pos
+
+;; Go: use goimports instead of gofmt (adds missing imports on save)
+(with-eval-after-load 'go-mode
+  (setq gofmt-command "goimports"))
+
+;; Rust: format on save via rustfmt
+(with-eval-after-load 'rust-mode
+  (setq rust-format-on-save t))
+(with-eval-after-load 'consult
+  (setq consult-project-root-function #'project-root))
+(with-eval-after-load 'project
+  (setq project-switch-commands
+        '((project-find-file "Find file")
+          (project-find-regexp "Grep")
+          (magit-project-status "Magit")
+          (jps-project-vterm "Shell")
+          (jps-project-test "Test")
+          (jps-project-build "Build")
+          (jps-project-deploy "Deploy")
+          (jps-project-open-compose "Compose")
+          (jps-project-notes "Notes"))))
+
 
 (jps-toggle-transparency)
 (provide 'jps)
