@@ -9,6 +9,7 @@
 
 ;; PATH synchronization (essential for external tools)
 (use-package exec-path-from-shell
+  :straight t
   :config
   (exec-path-from-shell-initialize))
 
@@ -123,34 +124,50 @@
 
 ;; LSP via Eglot
 (use-package eglot
+  :straight t
   :hook ((rust-mode . eglot-ensure)
          (go-mode . eglot-ensure)
          (python-mode . eglot-ensure)))
 
 ;; Docker/YAML modes
-(use-package dockerfile-mode)
-(use-package yaml-mode)
+(use-package dockerfile-mode
+  :straight t)
+(use-package yaml-mode
+  :straight t)
 (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-mode))
 (add-to-list 'auto-mode-alist '("\\`Dockerfile\\'" . dockerfile-mode))
 
 ;; Go
 (use-package go-mode
+  :straight t
   :hook (before-save . gofmt-before-save))
 
 ;; Rust
-(use-package rust-mode)
+(use-package rust-mode
+  :straight t)
 (use-package cargo
+  :straight t
   :hook (rust-mode . cargo-minor-mode))
-(use-package rust-playground)
+(use-package rust-playground
+  :straight t)
 
 ;; Python venv/format
-(use-package pyvenv :config (pyvenv-mode 1))
-(use-package blacken :hook (python-mode . blacken-mode))
+(use-package pyvenv
+  :straight t
+  :config (pyvenv-mode 1))
+(use-package blacken
+  :straight t
+  :hook (python-mode . blacken-mode))
 
 ;; Code quality & completion
-(use-package flycheck :init (global-flycheck-mode))
-(use-package yasnippet :config (yas-global-mode))
+(use-package flycheck
+  :straight t
+  :init (global-flycheck-mode))
+(use-package yasnippet
+  :straight t
+  :config (yas-global-mode))
 (use-package company
+  :straight t
   :defer 0.1
   :config
   (global-company-mode t)
@@ -164,17 +181,23 @@
 ;;; ============================================================================
 
 ;; Completion stack
-(use-package vertico :init (vertico-mode 1))
+(use-package vertico
+  :straight t
+  :init (vertico-mode 1))
 (use-package orderless
+  :straight t
   :init
   (setq completion-styles '(orderless basic)
         completion-category-defaults nil
         completion-category-overrides '((file (styles . (partial-completion))))))
 
-(use-package marginalia :init (marginalia-mode 1))
+(use-package marginalia
+  :straight t
+  :init (marginalia-mode 1))
 
 ;; Consult — no M-p override; keep stock project keys
 (use-package consult
+  :straight t
   :bind (("C-S-p" . consult-ripgrep)
          ("C-x b" . consult-buffer))
   :init
@@ -183,6 +206,7 @@
 
 ;; Embark
 (use-package embark
+  :straight t
   :bind (("C-." . embark-act)
          ("C-;" . embark-dwim)
          ("C-h B" . embark-bindings))
@@ -190,6 +214,7 @@
   (setq prefix-help-command #'embark-prefix-help-command))
 
 (use-package embark-consult
+  :straight t
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
@@ -201,6 +226,7 @@
 
 ;; Treemacs
 (use-package treemacs
+  :straight t
   :bind (("C-x t t" . treemacs)
          ("C-x t 1" . treemacs-delete-other-windows)
          ("C-x t b" . treemacs-bookmark))
@@ -218,6 +244,7 @@
 
 ;; Which-Key
 (use-package which-key
+  :straight t
   :init (which-key-mode 1)
   :custom (which-key-idle-delay 0.4))
 
@@ -225,31 +252,38 @@
 ;;; External Tools Integration
 ;;; ============================================================================
 
-(use-package vterm)
+(use-package vterm
+  :straight t)
 
 ;; Git integration
 (use-package magit
+  :straight t
   :bind (("C-x g" . magit-status)))
 
 (use-package git-gutter
+  :straight t
   :hook (prog-mode . git-gutter-mode)
   :config
   (setq git-gutter:update-interval 0.02))
 
 ;; Search and navigation
 (use-package deadgrep
+  :straight t
   :bind ("C-x p G" . deadgrep))
 
 ;; REST API client
 (use-package restclient
+  :straight t
   :mode ("\\.http\\'" . restclient-mode))
 
 ;; Docker management
 (use-package docker
+  :straight t
   :bind ("C-c D" . docker))
 
 ;; Multiple cursors for refactoring
 (use-package multiple-cursors
+  :straight t
   :bind (("C-S-c C-S-c" . mc/edit-lines)
          ("C->" . mc/mark-next-like-this)
          ("C-<" . mc/mark-previous-like-this)
@@ -257,6 +291,7 @@
 
 ;; Markdown support
 (use-package markdown-mode
+  :straight t
   :mode ("README\\.md\\'" . gfm-mode)
   :init (setq markdown-command "multimarkdown"))
 
