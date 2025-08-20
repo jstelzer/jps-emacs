@@ -74,6 +74,7 @@ The setup script creates symlinks from `~/.emacs.d/` to your config files:
 | Key         | Action                      |
 |-------------|------------------------------|
 | `C-c d`     | Kill line (vi-style dd)     |
+| `C-c D`     | Docker management           |
 | `C-c j`     | Format JSON region          |
 | `C-c J`     | Flatten JSON to one line    |
 | `C-c t`     | Insert timestamp            |
@@ -97,6 +98,8 @@ Uses standard Emacs project.el conventions with uppercase letters for custom com
 | `C-x p B`   | Smart build command         |
 | `C-x p D`   | Smart deploy command        |
 | `C-x p C`   | Open docker compose file    |
+| `C-x p N`   | Open/create project notes   |
+| `C-x p G`   | Deadgrep search             |
 | `C-x p r`   | Recompile last command      |
 
 ## Package Management
@@ -163,6 +166,113 @@ For SSH or console-only systems:
 3. All your customizations will be available immediately
 
 This approach keeps your configuration clean and avoids syncing temporary files, caches, or downloaded packages across machines.
+
+## Essential Tools
+
+This configuration includes carefully selected tools to enhance your development workflow:
+
+### Git & Version Control
+
+- **[Magit](https://github.com/magit/magit)** (`C-x g`) - The definitive Git interface for Emacs
+- **[Git-Gutter](https://github.com/emacsorphanage/git-gutter)** - Shows git diff indicators in the margin, real-time feedback on changes
+
+### Search & Navigation
+
+- **[Deadgrep](https://github.com/Wilfred/deadgrep)** (`C-x p G`) - Superior ripgrep interface with regex builder and file filtering
+  - Better than basic grep for complex searches across large codebases
+  - Interactive filtering of results by file type, directory
+  - Context controls and match highlighting
+  
+- **[Consult-Ripgrep](https://github.com/minad/consult)** (`C-S-p`) - Fast incremental search with live preview
+
+### Development Tools
+
+- **[RestClient](https://github.com/pashky/restclient.el)** - HTTP REST client directly in Emacs
+  - Create `.http` files with requests
+  - Execute with `C-c C-c` in the buffer
+  - Variables, assertions, and response handling
+  ```http
+  GET https://api.github.com/users/octocat
+  User-Agent: Emacs RestClient
+  ```
+
+- **[Docker](https://github.com/Silex/docker.el)** (`C-c D`) - Complete Docker management
+  - Container/image management
+  - Dockerfile mode with syntax highlighting
+  - Docker-compose integration
+
+### Editing Enhancements
+
+- **[Multiple-Cursors](https://github.com/magnars/multiple-cursors.el)** - Sublime Text style multiple cursors
+  - `C-S-c C-S-c` - Edit lines with cursors
+  - `C->` - Mark next like this
+  - `C-<` - Mark previous like this
+  - `C-c C->` - Mark all like this
+
+- **[Markdown-Mode](https://github.com/jrblevin/markdown-mode)** - GitHub-flavored markdown support
+  - Auto-enabled for README.md files
+  - Preview support with `C-c C-c p`
+
+### Project Extensions
+
+- **Project Notes** (`C-x p N`) - Opens/creates `NOTES.org` in project root
+  - Automatic template for new notes files
+  - Per-project task tracking and ideas
+
+### Language Support
+
+- **LSP via Eglot** - Built-in language server protocol support
+- **Rust** - rust-mode, cargo integration, rust-playground
+- **Go** - go-mode with gofmt on save
+- **Python** - pyvenv, blacken auto-formatting
+- **Docker/YAML** - Syntax highlighting and formatting
+
+## Tool Usage Examples
+
+### Deadgrep Advanced Search
+```
+C-x p G                   # Launch deadgrep in project
+M-x deadgrep-edit-mode    # Edit results directly
+g                         # Refresh results
+TAB                       # Expand/collapse file results
+```
+
+### Multiple Cursors Workflow
+```
+1. Select a word/symbol
+2. C-> to mark next occurrence
+3. C-> again for more
+4. Edit all simultaneously
+5. C-g to exit multi-cursor mode
+```
+
+### RestClient Example
+Create a file `api-tests.http`:
+```http
+# Get user info
+GET https://api.example.com/user/123
+Authorization: Bearer token123
+
+###
+
+# Create new resource  
+POST https://api.example.com/items
+Content-Type: application/json
+
+{
+  "name": "New Item",
+  "value": 42
+}
+```
+Execute requests with `C-c C-c`.
+
+### Docker Management
+```
+C-c D         # Open docker main menu
+I             # List images
+C             # List containers
+F             # Follow container logs
+```
 
 ## Customization
 

@@ -231,6 +231,35 @@
 (use-package magit
   :bind (("C-x g" . magit-status)))
 
+(use-package git-gutter
+  :hook (prog-mode . git-gutter-mode)
+  :config
+  (setq git-gutter:update-interval 0.02))
+
+;; Search and navigation
+(use-package deadgrep
+  :bind ("C-x p G" . deadgrep))
+
+;; REST API client
+(use-package restclient
+  :mode ("\\.http\\'" . restclient-mode))
+
+;; Docker management
+(use-package docker
+  :bind ("C-c D" . docker))
+
+;; Multiple cursors for refactoring
+(use-package multiple-cursors
+  :bind (("C-S-c C-S-c" . mc/edit-lines)
+         ("C->" . mc/mark-next-like-this)
+         ("C-<" . mc/mark-previous-like-this)
+         ("C-c C->" . mc/mark-all-like-this)))
+
+;; Markdown support
+(use-package markdown-mode
+  :mode ("README\\.md\\'" . gfm-mode)
+  :init (setq markdown-command "multimarkdown"))
+
 ;; Claude Code IDE integration
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
@@ -357,6 +386,18 @@
         (find-file (car cand))
       (user-error "No docker compose file found in project"))))
 
+(defun jps-project-notes ()
+  "Open or create project-specific notes file."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (notes-file (expand-file-name "NOTES.org" root)))
+    (find-file notes-file)
+    (when (not (file-exists-p notes-file))
+      (insert (format "#+TITLE: %s Project Notes\n#+DATE: %s\n\n* Tasks\n\n* Ideas\n\n* Issues\n"
+                      (file-name-nondirectory (directory-file-name root))
+                      (format-time-string "%Y-%m-%d")))
+      (save-buffer))))
+
 ;; Bind under C-x p … (use uppercase to avoid clobbering stock keys)
 (define-key project-prefix-map (kbd "R") #'jps-project-ripgrep)   ;; R = Ripgrep
 (define-key project-prefix-map (kbd "S") #'jps-project-vterm)     ;; S = Shell (vterm)
@@ -365,6 +406,7 @@
 (define-key project-prefix-map (kbd "B") #'jps-project-build)     ;; B = Build
 (define-key project-prefix-map (kbd "D") #'jps-project-deploy)    ;; D = Deploy
 (define-key project-prefix-map (kbd "C") #'jps-project-open-compose) ;; C = Compose
+(define-key project-prefix-map (kbd "N") #'jps-project-notes)     ;; N = Notes
 (define-key project-prefix-map (kbd "r") #'jps-project-recompile) ;; r = re-run last compile
 
 ;; Which-Key labels for the dashboard
@@ -378,13 +420,15 @@
     "B" "build"
     "D" "deploy"
     "C" "open compose"
+    "N" "project notes"
+    "G" "deadgrep"
     "r" "recompile last"))
 
 ;;; ============================================================================
 ;;; Key Bindings (global quality-of-life)
 ;;; ============================================================================
 
-(global-set-key (kbd "C-c D") (lambda () (interactive) (load-theme 'manoj-dark)))
+(global-set-key (kbd "C-c T") (lambda () (interactive) (load-theme 'manoj-dark)))
 (global-set-key (kbd "C-c F") #'toggle-frame-fullscreen)
 (global-set-key (kbd "C-c J") #'jps-json-flatten)
 (global-set-key (kbd "C-c L") (lambda () (interactive) (load-theme 'adwaita)))
