@@ -92,12 +92,28 @@
   (insert (format-time-string "%a %b %d %H:%M:%S %Y")))
 
 (defun jps-toggle-transparency ()
-  "Toggle window transparency on/off."
+  "Toggle frame transparency between opaque and semi-transparent on any build."
   (interactive)
-  (let ((current (frame-parameter nil 'alpha-background)))
-    (if (and current (< current 100))
-        (set-frame-parameter nil 'alpha-background 100)
-      (set-frame-parameter nil 'alpha-background 75))))
+  (let* ((frame (selected-frame))
+         ;; mac-port/PGTK/X may return a number for alpha-background
+         (ab (frame-parameter frame 'alpha-background))
+         (have-ab (numberp ab))
+         (opaque   (if have-ab 1.0 100))
+         (trans    (if have-ab 0.75 75)))
+    (if have-ab
+        ;; Background-only transparency
+        (set-frame-parameter frame 'alpha-background
+                             (if (< ab 1.0) opaque trans))
+      ;; Whole-frame transparency (NS/older builds)
+      (let* ((cur (frame-parameter frame 'alpha))
+             (cur-active (cond ((numberp cur) cur)
+                               ((consp cur) (car cur))
+                               (t 100))))
+        (set-frame-parameter frame 'alpha
+                             (if (< cur-active 100)
+                                 (cons opaque opaque)
+                               (cons trans trans)))))))
+
 
 (defun jps-configure-platform ()
   "Configure platform-specific options."
