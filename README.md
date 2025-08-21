@@ -187,14 +187,51 @@ This configuration includes carefully selected tools to enhance your development
 
 ### Development Tools
 
-- **[RestClient](https://github.com/pashky/restclient.el)** - HTTP REST client directly in Emacs
-  - Create `.http` files with requests
-  - Execute with `C-c C-c` in the buffer
-  - Variables, assertions, and response handling
+- **[RestClient](https://github.com/pashky/restclient.el)** - Full-featured HTTP client (Postman replacement)
+  
+  **Core Features:**
+  - Text-first `.http` files - version control friendly, diffable, shareable
+  - Execute requests with `C-c C-c`, re-run last with `C-c C-r`
+  - Variables for DRY requests (`:base_url`, `:token`, etc.)
+  - Automatic cookie/session management between requests
+  - Response viewing with syntax highlighting
+  
+  **Enhanced Workflow (Custom Functions):**
+  - `C-x p A` - Open/create project API scratchpad with starter template
+  - `C-c C-b` - Auto-extract Bearer token from login response
+  - `C-c C-e` - Quick environment switcher (dev/stage/prod)
+  - `C-c C-j` - Pipe JSON response through jq filters
+  - Company autocompletion for HTTP methods, headers, and variables
+  
+  **Example Workflow:**
   ```http
-  GET https://api.github.com/users/octocat
-  User-Agent: Emacs RestClient
+  # Variables at top
+  :env = dev
+  :base_url = http://localhost:8080
+  :token =
+  
+  ### Login (run with C-c C-c, then C-c C-b to extract token)
+  POST :base_url/login
+  Content-Type: application/json
+  
+  {"username": "demo", "password": "secret"}
+  
+  ### Use extracted token for protected endpoints
+  GET :base_url/api/users
+  Authorization: Bearer :token
+  
+  ### Filter response with jq (C-c C-j then enter '.items[] | {id, name}')
+  GET :base_url/api/search?q=emacs
+  Authorization: Bearer :token
   ```
+  
+  **Why It Replaces Postman:**
+  - No external app needed - works in your editor
+  - Plain text format - commit API tests with your code
+  - Keyboard-centric - no mouse clicking through tabs
+  - Project-specific `.http` files live with your code
+  - Share API examples in PRs and documentation
+  - Scriptable with elisp for complex auth flows
 
 - **[Docker](https://github.com/Silex/docker.el)** (`C-c D`) - Complete Docker management
   - Container/image management
