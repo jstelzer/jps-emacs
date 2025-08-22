@@ -24,6 +24,9 @@
 ;; Personal information
 (setq add-log-mailing-address "mental@neverlight.com"
       add-log-full-name "Jason Stelzer")
+;; --- Eglot workspace config holder (prevents void-variable errors) -----------
+(defvar eglot-workspace-configuration nil
+  "Per-language configuration map passed to LSP servers via Eglot.")
 
 ;; Python shell defaults (kept for convenience; pyenv will override interpreter)
 (setq py-python-command "ipython"
