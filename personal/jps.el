@@ -16,20 +16,16 @@
 ;; Basic UI settings
 (when (display-graphic-p)
   (tool-bar-mode -1)
-  ;; Set default font
-  (set-face-attribute 'default nil
-                      :family "MesloLGS NF"
-                      :height 120))
+  (set-face-attribute 'default nil :family "MesloLGS NF" :height 120))
 
 ;; Start server only in interactive mode
-(unless noninteractive
-  (server-start))
+(unless noninteractive (server-start))
 
 ;; Personal information
 (setq add-log-mailing-address "mental@neverlight.com"
       add-log-full-name "Jason Stelzer")
 
-;; Python configuration
+;; Python shell defaults (kept for convenience; pyenv will override interpreter)
 (setq py-python-command "ipython"
       py-python-command-args '("--pylab" "inline" "--colors" "NoColor"))
 
@@ -39,7 +35,8 @@
 
 ;; Interface improvements
 (fset 'yes-or-no-p 'y-or-n-p)
-(setq-default indent-tabs-mode nil)
+(setq-default indent-tabs-mode nil
+              tab-width 4)
 (setq c-default-style "user"
       c-basic-offset 4)
 
@@ -81,11 +78,6 @@
    b e "python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(\",\", \":\")))'"
    (current-buffer) t))
 
-;; (defun jps-json-flatten (b e)
-;;   "Flatten region B..E into one line of JSON."
-;;   (interactive "r")
-;;   (shell-command-on-region b e "perl -pe 's/\\n//g; s/\\s+/ /g;'" (current-buffer) t))
-
 (defun jps-generate-timestamp ()
   "Insert a timestamp at point."
   (interactive)
@@ -95,16 +87,13 @@
   "Toggle frame transparency between opaque and semi-transparent on any build."
   (interactive)
   (let* ((frame (selected-frame))
-         ;; mac-port/PGTK/X may return a number for alpha-background
          (ab (frame-parameter frame 'alpha-background))
          (have-ab (numberp ab))
-         (opaque   (if have-ab 1.0 100))
-         (trans    (if have-ab 0.75 75)))
+         (opaque (if have-ab 1.0 100))
+         (trans  (if have-ab 0.75 75)))
     (if have-ab
-        ;; Background-only transparency
         (set-frame-parameter frame 'alpha-background
                              (if (< ab 1.0) opaque trans))
-      ;; Whole-frame transparency (NS/older builds)
       (let* ((cur (frame-parameter frame 'alpha))
              (cur-active (cond ((numberp cur) cur)
                                ((consp cur) (car cur))
@@ -114,7 +103,6 @@
                                  (cons opaque opaque)
                                (cons trans trans)))))))
 
-
 (defun jps-configure-platform ()
   "Configure platform-specific options."
   (interactive)
@@ -122,7 +110,6 @@
     (message "Configuring macOS...")
     (when (display-graphic-p)
       (setq default-input-method "MacOSX")
-      ;; Smooth scrolling for trackpad/mouse
       (dolist (event '([wheel-down] [double-wheel-down] [triple-wheel-down]))
         (global-set-key event (lambda () (interactive) (scroll-down 1))))
       (dolist (event '([wheel-up] [double-wheel-up] [triple-wheel-up]))
@@ -146,23 +133,48 @@
 ;;; ============================================================================
 
 ;; LSP via Eglot
-;; Bigger pipe for language servers (Emacs 27+)
 (setq read-process-output-max (* 1024 1024)) ; 1MB
-;; Less chatty echo area from Eglot
-(with-eval-after-load 'eglot
-  (setq eglot-events-buffer-size 0))
-
 (use-package eglot
   :straight t
   :hook ((rust-mode . eglot-ensure)
          (go-mode . eglot-ensure)
          (python-mode . eglot-ensure)))
 
+(with-eval-after-load 'eglot
+  ;; Less chatty; better xref; faster change notifications
+  (setq eglot-events-buffer-size 0
+        eglot-extend-to-xref t
+        eglot-send-changes-idle-time 0.1)
+
+  ;; Prefer LSP (capf) completions for company
+  (with-eval-after-load 'company
+    (setq company-backends '(company-capf)))
+
+  ;; Use Flymake in Eglot buffers; quiet Flycheck there; enable inlay hints (Emacs 29+)
+  (add-hook 'eglot-managed-mode-hook
+            (lambda ()
+              (when (bound-and-true-p flycheck-mode) (flycheck-mode -1))
+              (flymake-mode 1)
+              (when (fboundp 'eglot-inlay-hints-mode)
+                (eglot-inlay-hints-mode 1))))
+
+  ;; Format on save if server supports it
+  (defun jps-eglot-format-on-save-maybe ()
+    (when (and (bound-and-true-p eglot--managed-mode)
+               (eglot--server-capable :documentFormattingProvider))
+      (eglot-format-buffer)))
+  (add-hook 'before-save-hook #'jps-eglot-format-on-save-maybe)
+
+  ;; Handy keys
+  (define-key eglot-mode-map (kbd "C-c e a") #'eglot-code-actions)
+  (define-key eglot-mode-map (kbd "C-c e r") #'eglot-rename)
+  (define-key eglot-mode-map (kbd "C-c e o") #'eglot-code-action-organize-imports)
+  (define-key eglot-mode-map (kbd "C-c e i") #'eglot-find-implementation)
+  (define-key eglot-mode-map (kbd "C-c e t") #'eglot-find-typeDefinition))
+
 ;; Docker/YAML modes
-(use-package dockerfile-mode
-  :straight t)
-(use-package yaml-mode
-  :straight t)
+(use-package dockerfile-mode :straight t)
+(use-package yaml-mode       :straight t)
 (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-mode))
 (add-to-list 'auto-mode-alist '("\\`Dockerfile\\'" . dockerfile-mode))
 
@@ -170,31 +182,197 @@
 (use-package go-mode
   :straight t
   :hook (before-save . gofmt-before-save))
+(with-eval-after-load 'go-mode
+  ;; Use goimports globally; Eglot organize imports too
+  (setq gofmt-command "goimports"))
+;; gopls tuning
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(go-mode . ("gopls")))
+  (setq-default eglot-workspace-configuration
+                (append
+                 '((gopls . ((usePlaceholders . t)
+                             (completeUnimported . t)
+                             (staticcheck . t)
+                             (gofumpt . t)
+                             (hints . ((assignVariableTypes . t)
+                                       (compositeLiteralFields . t)
+                                       (compositeLiteralTypes . t)
+                                       (constantValues . t)
+                                       (functionTypeParameters . t)
+                                       (parameterNames . t)
+                                       (rangeVariableTypes . t))))))
+                 eglot-workspace-configuration)))
+(add-hook 'go-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook
+                      (lambda ()
+                        (when (bound-and-true-p eglot--managed-mode)
+                          (ignore-errors (eglot-code-action-organize-imports))))
+                      nil t)))
 
 ;; Rust
-(use-package rust-mode
-  :straight t)
-(use-package cargo
-  :straight t
-  :hook (rust-mode . cargo-minor-mode))
-(use-package rust-playground
-  :straight t)
+(use-package rust-mode :straight t)
+(use-package cargo     :straight t :hook (rust-mode . cargo-minor-mode))
+(use-package rust-playground :straight t)
+(with-eval-after-load 'rust-mode
+  (setq rust-format-on-save t))
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
+  (setq-default eglot-workspace-configuration
+                (append
+                 '((rust-analyzer
+                    . ((cargo . ((allFeatures . t)))
+                       ;; ✅ modern setting: run clippy on save
+                       (check . ((command . "clippy")))
+                       ;; (optional) if you want to toggle on/off explicitly:
+                       ;; (checkOnSave . t)
+                       (imports . ((granularity . ((group . "module")))
+                                   (prefix . "by_self")))
+                       (inlayHints . ((bindingModeHints . t)
+                                      (closingBraceHints . t)
+                                      (closureReturnTypeHints . "always")
+                                      (parameterHints . t)
+                                      (typeHints . t))))))
+                 eglot-workspace-configuration)))
 
-;; Python venv/format
-(use-package pyvenv
-  :straight t
-  :config (pyvenv-mode 1))
-(use-package blacken
-  :straight t
-  :hook (python-mode . blacken-mode))
 
-;; Code quality & completion
-(use-package flycheck
+;; Python: env mgmt + formatter
+(use-package blacken :straight t :hook (python-mode . blacken-mode))
+
+;;; ============================================================================
+;;; Python via pyenv (auto per project)
+;;; ============================================================================
+
+(use-package pyenv-mode
   :straight t
-  :init (global-flycheck-mode))
-(use-package yasnippet
-  :straight t
-  :config (yas-global-mode))
+  :commands (pyenv-mode pyenv-mode-set pyenv-versions pyenv-which)
+  :init
+  (setenv "PYENV_ROOT" (or (getenv "PYENV_ROOT")
+                           (expand-file-name "~/.pyenv")))
+  (add-to-list 'exec-path (expand-file-name "bin" (getenv "PYENV_ROOT")))
+  (pyenv-mode 1))
+
+;; Shared helper (also used by dashboard funcs later)
+(require 'project)
+(defvar jps--last-compile-cmd nil)
+
+(defun jps--project-root ()
+  (when-let* ((proj (project-current t)))
+    (expand-file-name (project-root proj))))
+
+(defun jps--read-file-first-line (f)
+  (when (file-readable-p f)
+    (with-temp-buffer
+      (insert-file-contents f)
+      (string-trim (buffer-substring-no-properties (point-min) (line-end-position))))))
+
+(defun jps--pyenv-version-for (dir)
+  "Resolve the pyenv version name for DIR (reads .python-version or pyenv default)."
+  (let* ((dot (jps--read-file-first-line (expand-file-name ".python-version" dir))))
+    (if (and dot (not (string-empty-p dot)))
+        dot
+      (string-trim (with-output-to-string
+                     (with-current-buffer standard-output
+                       (call-process "pyenv" nil t nil "version-name")))))))
+
+(defun jps--pyenv-virtualenv-dir (version)
+  "Return directory of VERSION if it's a pyenv virtualenv; else nil."
+  (let* ((root (getenv "PYENV_ROOT"))
+         (vdir (and version (expand-file-name (concat "versions/" version) root))))
+    (when (and vdir (file-exists-p (expand-file-name "bin/activate" vdir)))
+      vdir)))
+
+(defvar-local jps--active-pyenv-version nil)
+(defvar-local jps--active-python-bin nil)
+
+(defun jps--activate-pyenv-for-buffer ()
+  "Activate pyenv version/venv for current Python buffer & configure tools/LSP."
+  (when (derived-mode-p 'python-mode)
+    (let* ((root (or (jps--project-root) default-directory))
+           (ver  (jps--pyenv-version-for root))
+           (venv-dir (jps--pyenv-virtualenv-dir ver))
+           (python-bin (or (and ver (ignore-errors (pyenv-which "python")))
+                           (executable-find "python")))
+           (changed (not (equal ver jps--active-pyenv-version))))
+      (when ver (pyenv-mode-set ver))
+      ;; VIRTUAL_ENV for virtualenvs
+      (if venv-dir
+          (progn
+            (setq-local process-environment
+                        (cons (concat "VIRTUAL_ENV=" venv-dir)
+                              (seq-remove (lambda (s) (string-prefix-p "VIRTUAL_ENV=" s))
+                                          process-environment)))
+            (add-to-list 'exec-path (expand-file-name "bin" venv-dir)))
+        (setq-local process-environment
+                    (seq-remove (lambda (s) (string-prefix-p "VIRTUAL_ENV=" s))
+                                process-environment)))
+      ;; Interpreter for REPL/tools
+      (when python-bin
+        (setq-local python-shell-interpreter python-bin)
+        (setq jps--active-python-bin python-bin))
+      (setq jps--active-pyenv-version ver)
+
+      ;; Eglot server config (pylsp + ruff; pyright-based clients also hinted)
+      (setq-local eglot-workspace-configuration
+                  (let* ((base (or eglot-workspace-configuration '()))
+                         (pyroot (expand-file-name "versions" (getenv "PYENV_ROOT")))
+                         (venv-name (and venv-dir (file-name-nondirectory (directory-file-name venv-dir)))))
+                    (append
+                     `((python . ((venvPath . ,pyroot) (venv . ,venv-name)))
+                       (pyright . ((venvPath . ,pyroot) (venv . ,venv-name)))
+                       (basedpyright . ((venvPath . ,pyroot) (venv . ,venv-name)))
+                       (pylsp . ((plugins . ((jedi . ((environment . ,(or venv-dir "")))))))))
+                     base)))
+
+      ;; Restart Eglot if env changed
+      (when (and (bound-and-true-p eglot--managed-mode) changed)
+        (ignore-errors (eglot-reconnect))))))
+
+(add-hook 'python-mode-hook #'jps--activate-pyenv-for-buffer)
+(add-hook 'find-file-hook (lambda () (when (eq major-mode 'python-mode)
+                                       (jps--activate-pyenv-for-buffer))))
+
+(defun jps-pyenv-switch (&optional version)
+  "Interactively switch pyenv VERSION for this project/buffer and refresh Eglot."
+  (interactive)
+  (let* ((ver (or version (completing-read "pyenv version: " (pyenv-versions))))
+         (root (or (jps--project-root) default-directory)))
+    (with-temp-file (expand-file-name ".python-version" root)
+      (insert ver "\n"))
+    (message "Set .python-version => %s" ver)
+    (jps--activate-pyenv-for-buffer)))
+(global-set-key (kbd "C-c p y") #'jps-pyenv-switch)
+
+;; Keep Black/Ruff/etc on the selected interpreter
+(with-eval-after-load 'blacken
+  (add-hook 'python-mode-hook
+            (lambda ()
+              (when jps--active-python-bin
+                (setq-local blacken-executable
+                            (or (executable-find "black")
+                                (expand-file-name "black" (concat (file-name-directory jps--active-python-bin) "../bin/"))))))))
+
+;; LSP server choice for Python: pylsp + ruff (single LSP lane)
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(python-mode . ("pylsp")))
+  (setq-default eglot-workspace-configuration
+                (append
+                 '((pylsp . ((plugins . ((pyflakes . (:enabled nil))
+                                         (mccabe . (:enabled nil))
+                                         (pycodestyle . (:enabled nil))
+                                         (ruff . (:enabled t))
+                                         (black . (:enabled nil))
+                                         (yapf . (:enabled nil))
+                                         (pydocstyle . (:enabled nil))))))
+                   (python . ((analysis . ((diagnosticMode . "openFilesOnly"))))))
+                 eglot-workspace-configuration)))
+
+;;; ============================================================================
+;;; Code quality & completion
+;;; ============================================================================
+
+(use-package flycheck :straight t :init (global-flycheck-mode))
+(use-package yasnippet :straight t :config (yas-global-mode))
 (use-package company
   :straight t
   :defer 0.1
@@ -209,22 +387,14 @@
 ;;; Modern Emacs UI
 ;;; ============================================================================
 
-;; Completion stack
-(use-package vertico
-  :straight t
-  :init (vertico-mode 1))
-(use-package orderless
-  :straight t
+(use-package vertico   :straight t :init (vertico-mode 1))
+(use-package orderless :straight t
   :init
   (setq completion-styles '(orderless basic)
         completion-category-defaults nil
         completion-category-overrides '((file (styles . (partial-completion))))))
+(use-package marginalia :straight t :init (marginalia-mode 1))
 
-(use-package marginalia
-  :straight t
-  :init (marginalia-mode 1))
-
-;; Consult — no M-p override; keep stock project keys
 (use-package consult
   :straight t
   :bind (("C-S-p" . consult-ripgrep)
@@ -233,29 +403,32 @@
   (setq consult-find-command
         "fd --hidden --follow --exclude .git --color=never -t f \\S- || find . -type f"))
 
-;; Embark
 (use-package embark
   :straight t
   :bind (("C-." . embark-act)
          ("C-;" . embark-dwim)
          ("C-h B" . embark-bindings))
-  :init
-  (setq prefix-help-command #'embark-prefix-help-command))
+  :init (setq prefix-help-command #'embark-prefix-help-command))
 
-(use-package embark-consult
-  :straight t
-  :after (embark consult)
+(use-package embark-consult :straight t :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
-;; Project: use the stock C-x p prefix (Emacs 28+)
-(use-package project
-  :straight nil
-  :init
-  (setq project-vc-extra-root-markers '(".git")))
+(use-package project :straight nil
+  :init (setq project-vc-extra-root-markers '(".git"))
+  :config
+  (setq project-switch-commands
+        '((project-find-file "Find file")
+          (project-find-regexp "Grep")
+          (magit-project-status "Magit")
+          (jps-project-vterm "Shell")
+          (jps-project-test "Test")
+          (jps-project-build "Build")
+          (jps-project-deploy "Deploy")
+          (jps-project-open-compose "Compose")
+          (jps-project-notes "Notes"))))
 
 ;; Treemacs
-(use-package treemacs
-  :straight t
+(use-package treemacs :straight t
   :bind (("C-x t t" . treemacs)
          ("C-x t 1" . treemacs-delete-other-windows)
          ("C-x t b" . treemacs-bookmark))
@@ -265,15 +438,11 @@
   (treemacs-git-mode 'deferred)
   (when (fboundp 'treemacs-hide-gitignored-files-mode)
     (treemacs-hide-gitignored-files-mode 1)))
-
-(use-package treemacs-project-follow-mode
-  :straight nil
+(use-package treemacs-project-follow-mode :straight nil
   :after treemacs
   :config (treemacs-project-follow-mode 1))
 
-;; Which-Key
-(use-package which-key
-  :straight t
+(use-package which-key :straight t
   :init (which-key-mode 1)
   :custom (which-key-idle-delay 0.4))
 
@@ -281,42 +450,31 @@
 ;;; External Tools Integration
 ;;; ============================================================================
 
-(use-package vterm
-  :straight t)
+(use-package vterm :straight t)
 
-;; Git integration
-(use-package magit
-  :straight t
+(use-package magit :straight t
   :bind (("C-x g" . magit-status)))
 
-(use-package git-gutter
-  :straight t
+(use-package git-gutter :straight t
   :hook (prog-mode . git-gutter-mode)
-  :config
-  (setq git-gutter:update-interval 0.02))
+  :config (setq git-gutter:update-interval 0.02))
 
-;; Search and navigation
-(use-package deadgrep
-  :straight t
+(use-package deadgrep :straight t
   :bind ("C-x p G" . deadgrep))
 
-;; REST API client
-(use-package restclient
-  :straight t
+(use-package restclient :straight t
   :mode ("\\.http\\'" . restclient-mode)
   :config
   (defun jps-restclient-extract-token ()
     "Extract token from last response and insert/update :token variable."
     (interactive)
     (let ((token nil))
-      ;; Search for token in response buffer
       (save-excursion
         (when (get-buffer "*HTTP Response*")
           (with-current-buffer "*HTTP Response*"
             (goto-char (point-min))
             (when (re-search-forward "\"id_token\"\\s-*:\\s-*\"\\([^\"]+\\)\"" nil t)
               (setq token (match-string 1))))))
-      ;; Update or insert token in request buffer
       (when token
         (save-excursion
           (goto-char (point-min))
@@ -325,48 +483,124 @@
             (goto-char (point-min))
             (insert (format ":token = %s\n\n" token))))
         (message "Token extracted and set!"))
-      (unless token
-        (message "No id_token found in response"))))
-  
+      (unless token (message "No id_token found in response"))))
   :bind (:map restclient-mode-map
               ("C-c C-t" . jps-restclient-extract-token)))
 
-;; Docker management
-(use-package docker
-  :straight t
-  :bind ("C-c D" . docker))
+(use-package docker :straight t :bind ("C-c D" . docker))
 
-;; Multiple cursors for refactoring
-(use-package multiple-cursors
-  :straight t
+(use-package multiple-cursors :straight t
   :bind (("C-S-c C-S-c" . mc/edit-lines)
          ("C->" . mc/mark-next-like-this)
          ("C-<" . mc/mark-previous-like-this)
          ("C-c C->" . mc/mark-all-like-this)))
 
-;; Markdown support
-(use-package markdown-mode
-  :straight t
+(use-package markdown-mode :straight t
   :mode ("README\\.md\\'" . gfm-mode)
   :init (setq markdown-command "multimarkdown"))
 
-;; Claude Code IDE integration
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
   :bind ("C-c C-'" . claude-code-ide-menu)
-  :config
-  (claude-code-ide-emacs-tools-setup))
+  :config (claude-code-ide-emacs-tools-setup))
+
+;; REST ergonomics
+(use-package company-restclient :straight t)
+(use-package jq-mode           :straight t) ; view JSON with jq
+(use-package graphql-mode      :straight t)
+(use-package ob-restclient     :straight t
+  :after (org restclient)
+  :init (org-babel-do-load-languages 'org-babel-load-languages '((restclient . t))))
+
+(with-eval-after-load 'restclient
+  (add-hook 'restclient-mode-hook
+            (lambda ()
+              (setq-local company-backends '((company-restclient company-dabbrev-code)))
+              (company-mode 1)
+              (visual-line-mode 1))))
+
+(defun jps-project-open-api ()
+  "Open or create the project's api.http scratchpad."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (file (expand-file-name "api.http" root)))
+    (unless (file-exists-p file)
+      (with-temp-file file
+        (insert "# Project API scratchpad\n"
+                "# Tip: C-c C-c sends the request under point\n\n"
+                ":env = dev\n"
+                ":base_url = http://localhost:8080\n"
+                ":token = \n\n"
+                "### Health\nGET :base_url/health\n\n"
+                "### Login\nPOST :base_url/login\nContent-Type: application/json\n\n"
+                "{\n  \"username\": \"user\",\n  \"password\": \"pass\"\n}\n\n"
+                "### Authorized example\nGET :base_url/me\nAuthorization: Bearer :token\n")))
+    (find-file file)))
+(define-key project-prefix-map (kbd "A") #'jps-project-open-api)
+(with-eval-after-load 'which-key
+  (which-key-add-keymap-based-replacements project-prefix-map "A" "API scratchpad"))
+
+(defun jps-restclient-set-bearer-from-response ()
+  "Grab id_token/access_token from *HTTP Response* and set :token in current .http buffer."
+  (interactive)
+  (let ((tok nil))
+    (when (get-buffer "*HTTP Response*")
+      (with-current-buffer "*HTTP Response*"
+        (save-excursion
+          (goto-char (point-min))
+          (when (re-search-forward "\"\\(id_token\\|access_token\\)\"\\s-*:\\s-*\"\\([^\"]+\\)\"" nil t)
+            (setq tok (match-string 2))))))
+    (if tok
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward "^:token\\s-*=" nil t)
+              (replace-match (format ":token = %s" tok) t t)
+            (goto-char (point-min))
+            (insert (format ":token = %s\n" tok) "\n"))
+          (message "Bearer :token updated."))
+      (message "No id_token/access_token in *HTTP Response*."))))
+(with-eval-after-load 'restclient
+  (define-key restclient-mode-map (kbd "C-c C-b") #'jps-restclient-set-bearer-from-response))
+
+(defun jps-restclient-set-env (name)
+  "Set :env variable at top of current .http buffer to NAME."
+  (interactive (list (completing-read "env: " '("dev" "stage" "prod") nil t)))
+  (save-excursion
+    (goto-char (point-min))
+    (if (re-search-forward "^:env\\s-*=" nil t)
+        (replace-match (format ":env = %s" name) t t)
+      (goto-char (point-min))
+      (insert (format ":env = %s\n\n" name))))
+  (message "env => %s" name))
+(with-eval-after-load 'restclient
+  (define-key restclient-mode-map (kbd "C-c C-e") #'jps-restclient-set-env))
+
+(defun jps-restclient-jq (filter)
+  "Run jq FILTER over the *HTTP Response* JSON and show in a temp buffer."
+  (interactive "sjq filter: ")
+  (let ((resp (get-buffer "*HTTP Response*")))
+    (unless resp (user-error "No *HTTP Response* buffer"))
+    (with-current-buffer resp
+      (save-excursion
+        (goto-char (point-min))
+        (unless (re-search-forward "^{\\|\\[" nil t)
+          (user-error "No JSON payload found in *HTTP Response*")))
+      (let* ((json (buffer-substring-no-properties (match-beginning 0) (point-max)))
+             (buf (get-buffer-create "*HTTP Response | jq*")))
+        (with-current-buffer buf
+          (erase-buffer)
+          (let* ((tmp (make-temp-file "resp" nil ".json" json))
+                 (cmd (format "jq '%s' %s" filter (shell-quote-argument tmp))))
+            (call-process-shell-command cmd nil t t)
+            (delete-file tmp))
+          (jq-mode))
+        (pop-to-buffer buf)))))
+(with-eval-after-load 'restclient
+  (define-key restclient-mode-map (kbd "C-c C-j") #'jps-restclient-jq))
 
 ;;; ============================================================================
 ;;; Project Dashboard (C-x p …)
 ;;; ============================================================================
-
-(require 'project)
-(defvar jps--last-compile-cmd nil)
-
-(defun jps--project-root ()
-  (when-let* ((proj (project-current t)))
-    (expand-file-name (project-root proj))))
 
 (defun jps--run-in-project (cmd)
   "Run shell CMD from the project root using `compile'."
@@ -404,41 +638,37 @@
   "Smart test command based on project type."
   (interactive)
   (let* ((root (jps--project-root))
-         (cmd
-          (cond
-           ((file-exists-p (expand-file-name "go.mod" root)) "go test ./...")
-           ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo test")
-           ((jps--file-exists-any root "pytest.ini" "pyproject.toml" "tox.ini") "pytest -q")
-           ((jps--file-exists-any root "justfile" "Justfile" ".justfile") "just test")
-           ((file-exists-p (expand-file-name "Makefile" root)) "make test")
-           (t (read-shell-command "Test command: ")))))
+         (cmd (cond
+               ((file-exists-p (expand-file-name "go.mod" root)) "go test ./...")
+               ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo test")
+               ((jps--file-exists-any root "pytest.ini" "pyproject.toml" "tox.ini") "pytest -q")
+               ((jps--file-exists-any root "justfile" "Justfile" ".justfile") "just test")
+               ((file-exists-p (expand-file-name "Makefile" root)) "make test")
+               (t (read-shell-command "Test command: ")))))
     (jps--run-in-project cmd)))
 
 (defun jps-project-build ()
   "Smart build command based on project type."
   (interactive)
   (let* ((root (jps--project-root))
-         (cmd
-          (cond
-           ((file-exists-p (expand-file-name "go.mod" root)) "go build ./...")
-           ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo build")
-           ((jps--file-exists-any root "pyproject.toml" "setup.cfg" "setup.py") "python -m build")
-           ((jps--file-exists-any root "justfile" "Justfile" ".justfile") "just build")
-           ((file-exists-p (expand-file-name "Makefile" root)) "make")
-           (t (read-shell-command "Build command: ")))))
+         (cmd (cond
+               ((file-exists-p (expand-file-name "go.mod" root)) "go build ./...")
+               ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo build")
+               ((jps--file-exists-any root "pyproject.toml" "setup.cfg" "setup.py") "python -m build")
+               ((jps--file-exists-any root "justfile" "Justfile" ".justfile") "just build")
+               ((file-exists-p (expand-file-name "Makefile" root)) "make")
+               (t (read-shell-command "Build command: ")))))
     (jps--run-in-project cmd)))
 
 (defun jps-project-deploy ()
-  "Best-guess deploy: prefer justfile 'deploy', then Makefile 'deploy', then scripts/deploy.sh."
+  "Best-guess deploy: justfile deploy > Makefile deploy > scripts/deploy.sh."
   (interactive)
   (let* ((root (jps--project-root))
-         (just-files (seq-filter 
-                      (lambda (f) (file-exists-p (expand-file-name f root)))
-                      '("justfile" "Justfile" ".justfile")))
+         (just-files (seq-filter (lambda (f) (file-exists-p (expand-file-name f root)))
+                                 '("justfile" "Justfile" ".justfile")))
          (mk (expand-file-name "Makefile" root))
          (script (expand-file-name "scripts/deploy.sh" root))
          (cmd (cond
-               ;; Check for justfile with deploy recipe
                ((and just-files
                      (let ((jf (expand-file-name (car just-files) root)))
                        (with-temp-buffer
@@ -446,7 +676,6 @@
                          (goto-char (point-min))
                          (re-search-forward "^deploy\\s*:" nil t))))
                 "just deploy")
-               ;; Check for Makefile with deploy target
                ((and (file-exists-p mk)
                      (with-temp-buffer
                        (insert-file-contents mk)
@@ -488,19 +717,17 @@
                       (format-time-string "%Y-%m-%d")))
       (save-buffer))))
 
-;; Bind under C-x p … (use uppercase to avoid clobbering stock keys)
-(define-key project-prefix-map (kbd "R") #'jps-project-ripgrep)   ;; R = Ripgrep
-(define-key project-prefix-map (kbd "S") #'jps-project-vterm)     ;; S = Shell (vterm)
-(define-key project-prefix-map (kbd "M") #'jps-project-magit)     ;; M = Magit
-(define-key project-prefix-map (kbd "T") #'jps-project-test)      ;; T = Test
-(define-key project-prefix-map (kbd "B") #'jps-project-build)     ;; B = Build
-(define-key project-prefix-map (kbd "D") #'jps-project-deploy)    ;; D = Deploy
-(define-key project-prefix-map (kbd "C") #'jps-project-open-compose) ;; C = Compose
-(define-key project-prefix-map (kbd "N") #'jps-project-notes)     ;; N = Notes
-(define-key project-prefix-map (kbd "r") #'jps-project-recompile) ;; r = re-run last compile
+;; Bind under C-x p …
+(define-key project-prefix-map (kbd "R") #'jps-project-ripgrep)
+(define-key project-prefix-map (kbd "S") #'jps-project-vterm)
+(define-key project-prefix-map (kbd "M") #'jps-project-magit)
+(define-key project-prefix-map (kbd "T") #'jps-project-test)
+(define-key project-prefix-map (kbd "B") #'jps-project-build)
+(define-key project-prefix-map (kbd "D") #'jps-project-deploy)
+(define-key project-prefix-map (kbd "C") #'jps-project-open-compose)
+(define-key project-prefix-map (kbd "N") #'jps-project-notes)
+(define-key project-prefix-map (kbd "r") #'jps-project-recompile)
 
-
-;; Which-Key labels for the dashboard
 (with-eval-after-load 'which-key
   (which-key-add-keymap-based-replacements
     project-prefix-map
@@ -548,7 +775,6 @@
 (delete-selection-mode 1)
 (setq mouse-yank-at-point t)
 
-
 ;; File management
 (global-auto-revert-mode 1)
 (setq global-auto-revert-non-file-buffers t
@@ -557,7 +783,7 @@
       `((".*" ,(expand-file-name "~/.emacs.d/auto-save/") t)))
 (make-directory "~/.emacs.d/auto-save/" t)
 
-;; Cleanup auto-save files periodically (every 10 minutes, nuke contents)
+;; Cleanup auto-save files periodically (every 10 minutes; remove older than 7 days)
 (run-with-idle-timer
  600 t
  (lambda ()
@@ -567,150 +793,19 @@
        (dolist (f (directory-files dir t "^[^.]"))
          (when (and (file-regular-p f)
                     (> (- now (float-time (file-attribute-modification-time (file-attributes f))))
-                       (* 7 24 60 60))) ; older than 7 days
+                       (* 7 24 60 60)))
            (ignore-errors (delete-file f))))))))
 
 ;; Session management
 (savehist-mode 1)
-;; Make TABs consistent in views that still show them
-(setq-default tab-width 4)
+(save-place-mode 1) ;; reopen files at last cursor pos
 
-;; Yank/kill ring history survives longer Emacs sessions
-(save-place-mode 1)  ;; reopen files at last cursor pos
-
-;; Go: use goimports instead of gofmt (adds missing imports on save)
-(with-eval-after-load 'go-mode
-  (setq gofmt-command "goimports"))
-
-;; Rust: format on save via rustfmt
-(with-eval-after-load 'rust-mode
-  (setq rust-format-on-save t))
+;; Consult integration
 (with-eval-after-load 'consult
   (setq consult-project-root-function #'project-root))
-(with-eval-after-load 'project
-  (setq project-switch-commands
-        '((project-find-file "Find file")
-          (project-find-regexp "Grep")
-          (magit-project-status "Magit")
-          (jps-project-vterm "Shell")
-          (jps-project-test "Test")
-          (jps-project-build "Build")
-          (jps-project-deploy "Deploy")
-          (jps-project-open-compose "Compose")
-          (jps-project-notes "Notes"))))
 
-
+;; Final touch
 (jps-toggle-transparency)
-
-
-;; --- REST ergonomics ---------------------------------------------------------
-(use-package company-restclient :straight t)
-(use-package jq-mode :straight t)          ;; for viewing JSON with jq filters
-(use-package graphql-mode :straight t)     ;; if you poke GraphQL endpoints
-;; Optional: org-babel for API notebooks
-(use-package ob-restclient :straight t
-  :after (org restclient)
-  :init (org-babel-do-load-languages 'org-babel-load-languages '((restclient . t))))
-
-;; Auto-enable helpful bits in restclient buffers
-(with-eval-after-load 'restclient
-  (add-hook 'restclient-mode-hook
-            (lambda ()
-              (setq-local company-backends '((company-restclient company-dabbrev-code)))
-              (company-mode 1)
-              (visual-line-mode 1))))
-
-;; Open a project's api.http (or create it) via C-x p A
-(defun jps-project-open-api ()
-  "Open or create the project's api.http scratchpad."
-  (interactive)
-  (let* ((root (jps--project-root))
-         (file (expand-file-name "api.http" root)))
-    (unless (file-exists-p file)
-      (with-temp-file file
-        (insert "# Project API scratchpad\n"
-                "# Tip: C-c C-c sends the request under point\n\n"
-                ":env = dev\n"
-                ":base_url = http://localhost:8080\n"
-                ":token = \n\n"
-                "### Health\n"
-                "GET :base_url/health\n\n"
-                "### Login\n"
-                "POST :base_url/login\n"
-                "Content-Type: application/json\n\n"
-                "{\n  \"username\": \"user\",\n  \"password\": \"pass\"\n}\n\n"
-                "### Authorized example\n"
-                "GET :base_url/me\n"
-                "Authorization: Bearer :token\n")))
-    (find-file file)))
-
-(define-key project-prefix-map (kbd "A") #'jps-project-open-api) ;; C-x p A
-(with-eval-after-load 'which-key
-  (which-key-add-keymap-based-replacements project-prefix-map "A" "API scratchpad"))
-
-;; Smarter token grab: looks for id_token or access_token in *HTTP Response*
-(defun jps-restclient-set-bearer-from-response ()
-  "Grab id_token/access_token from *HTTP Response* and set :token in current .http buffer."
-  (interactive)
-  (let ((tok nil))
-    (when (get-buffer "*HTTP Response*")
-      (with-current-buffer "*HTTP Response*"
-        (save-excursion
-          (goto-char (point-min))
-          (when (re-search-forward "\"\\(id_token\\|access_token\\)\"\\s-*:\\s-*\"\\([^\"]+\\)\"" nil t)
-            (setq tok (match-string 2))))))
-    (if tok
-        (save-excursion
-          (goto-char (point-min))
-          (if (re-search-forward "^:token\\s-*=" nil t)
-              (replace-match (format ":token = %s" tok) t t)
-            (goto-char (point-min))
-            (insert (format ":token = %s\n" tok) "\n"))
-          (message "Bearer :token updated."))
-      (message "No id_token/access_token in *HTTP Response*."))))
-
-(with-eval-after-load 'restclient
-  (define-key restclient-mode-map (kbd "C-c C-b") #'jps-restclient-set-bearer-from-response))
-
-;; Quick environment toggle (writes :env = dev|stage|prod at top)
-(defun jps-restclient-set-env (name)
-  "Set :env variable at top of current .http buffer to NAME."
-  (interactive (list (completing-read "env: " '("dev" "stage" "prod") nil t)))
-  (save-excursion
-    (goto-char (point-min))
-    (if (re-search-forward "^:env\\s-*=" nil t)
-        (replace-match (format ":env = %s" name) t t)
-      (goto-char (point-min))
-      (insert (format ":env = %s\n\n" name))))
-  (message "env => %s" name))
-
-(with-eval-after-load 'restclient
-  (define-key restclient-mode-map (kbd "C-c C-e") #'jps-restclient-set-env))
-
-;; View last response through jq (reads jq filter from minibuffer)
-(defun jps-restclient-jq (filter)
-  "Run jq FILTER over the *HTTP Response* JSON and show in a temp buffer."
-  (interactive "sjq filter: ")
-  (let ((resp (get-buffer "*HTTP Response*")))
-    (unless resp (user-error "No *HTTP Response* buffer"))
-    (with-current-buffer resp
-      (save-excursion
-        (goto-char (point-min))
-        (unless (re-search-forward "^{\\|\\[" nil t)
-          (user-error "No JSON payload found in *HTTP Response*")))
-      (let* ((json (buffer-substring-no-properties (match-beginning 0) (point-max)))
-             (buf (get-buffer-create "*HTTP Response | jq*")))
-        (with-current-buffer buf
-          (erase-buffer)
-          (let* ((tmp (make-temp-file "resp" nil ".json" json))
-                 (cmd (format "jq '%s' %s" filter (shell-quote-argument tmp))))
-            (call-process-shell-command cmd nil t t)
-            (delete-file tmp))
-          (jq-mode))
-        (pop-to-buffer buf)))))
-
-(with-eval-after-load 'restclient
-  (define-key restclient-mode-map (kbd "C-c C-j") #'jps-restclient-jq))
 
 (provide 'jps)
 ;;; jps.el ends here
