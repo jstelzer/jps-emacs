@@ -7,6 +7,15 @@
 ;;; Basic Configuration
 ;;; ============================================================================
 
+;; Only do this on Emacs 29+
+(when (fboundp 'define-completion-category)
+  (define-completion-category
+    'project-buffer '(buffer)
+    "Completion category for buffers in a given project."))
+;; For Emacs <29 you can still tweak styles via overrides, e.g.:
+(add-to-list 'completion-category-overrides
+             '(project-buffer (styles . (basic substring))))
+             
 ;; PATH synchronization (essential for external tools)
 (use-package exec-path-from-shell
   :straight t
@@ -749,10 +758,10 @@
 ;;; Key Bindings (global quality-of-life)
 ;;; ============================================================================
 
-(global-set-key (kbd "C-c T") (lambda () (interactive) (load-theme 'manoj-dark)))
 (global-set-key (kbd "C-c F") #'toggle-frame-fullscreen)
 (global-set-key (kbd "C-c J") #'jps-json-flatten)
 (global-set-key (kbd "C-c L") (lambda () (interactive) (load-theme 'adwaita)))
+(global-set-key (kbd "C-c T") (lambda () (interactive) (load-theme 'manoj-dark)))
 (global-set-key (kbd "C-c W") #'whitespace-mode)
 (global-set-key (kbd "C-c X") #'jps-toggle-transparency)
 (global-set-key (kbd "C-c a") #'align-regexp)

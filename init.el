@@ -3,6 +3,11 @@
 ;;; Code:
 ;; Bootstrap straight.el for package management
 ;; This is the ONLY package manager we use - no package.el
+;; Emacs <29 compat: some packages (e.g. project.el from MELPA) call this.
+;; Pick font + size (family must be installed on your system)
+(set-face-attribute 'default nil :family "MesloLGS NF" :height 160)
+(unless (fboundp 'define-completion-category)
+  (defun define-completion-category (&rest _args) nil))
 (defvar bootstrap-version)
 (let ((bootstrap-file
        (expand-file-name
