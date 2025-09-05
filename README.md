@@ -88,6 +88,16 @@ once.
   `C-c C-'`  Claude Code IDE menu
   `C-c D`    Docker dashboard
 
+### ChatGPT
+
+how to use
+    Key                 Action
+   -----               ------------------------------------------------------------------------
+   `C-c g v`           → splits the frame: vterm (left) + chatgpt-shell (right) in your project.
+   `C-c g c`           → open a chat buffer anywhere.
+   `C-c g r / C-c g b` → send region / whole buffer.
+   `C-c g s`           → send region but keep your cursor where you were.
+
 ### Project Dashboard (`C-x p`)
 
 These live under the built-in `project-prefix-map`:
