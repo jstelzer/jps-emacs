@@ -51,6 +51,75 @@ once.
 
 ------------------------------------------------------------------------
 
+## External Binary Dependencies
+
+The config auto-detects what's installed, but here's the full list of external tools it can use. Install what you need for your languages:
+
+### Go Development
+
+```bash
+# LSP server (required for code intelligence)
+go install golang.org/x/tools/gopls@latest
+
+# Formatting (required, called on save)
+go install golang.org/x/tools/cmd/goimports@latest
+
+# Debugging (optional, for breakpoint debugging)
+go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Linting (optional, C-c C-s in go-mode)
+go install honnef.co/go/tools/cmd/staticcheck@latest
+
+# Struct memory layout analysis (optional, C-c C-l in go-mode)
+go install honnef.co/go/tools/cmd/structlayout@latest
+go install honnef.co/go/tools/cmd/structlayout-pretty@latest
+go install honnef.co/go/tools/cmd/structlayout-optimize@latest
+```
+
+### Python Development
+
+```bash
+# Version manager (highly recommended)
+curl https://pyenv.run | bash
+
+# LSP server (install in each virtualenv or globally)
+pip install 'python-lsp-server[all]'
+pip install python-lsp-ruff  # Ruff integration for fast linting
+
+# Formatter (optional, blacken-mode uses this)
+pip install black
+```
+
+### Rust Development
+
+```bash
+# Install via rustup (includes cargo, rustc, rust-analyzer)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Ensure rust-analyzer is available
+rustup component add rust-analyzer
+```
+
+### General Tools
+
+```bash
+# Fast search (used by consult-ripgrep, deadgrep)
+brew install ripgrep       # macOS
+pacman -S ripgrep          # Arch Linux
+
+# Fast file finding (optional, used by consult-find)
+brew install fd            # macOS
+pacman -S fd               # Arch Linux
+
+# Terminal emulator (vterm)
+# macOS: ships with libvterm via emacs-plus
+# Arch: pacman -S libvterm
+```
+
+**Note**: The config works fine without these tools --- you just won't get language-specific features until you install the relevant LSP servers and formatters.
+
+------------------------------------------------------------------------
+
 ## File Structure
 
     ~/emacs-config/
@@ -130,6 +199,19 @@ When editing code with LSP support:
   `C-c e i`    Find implementation
   `C-c e t`    Find type definition
 
+### Go-Specific Tools
+
+Additional commands available in `go-mode`:
+
+  Key            Action
+  -------------- ---------------------------------
+  `C-c C-t`      Open Go tools menu (transient)
+  `C-c C-s p`    Run staticcheck on project
+  `C-c C-s .`    Run staticcheck on package
+  `C-c C-l l`    Show struct memory layout (raw)
+  `C-c C-l p`    Show struct layout (pretty ASCII)
+  `C-c C-l o`    Optimize struct field ordering
+
 ### RestClient Mode
 
 When editing `.http` files:
@@ -169,6 +251,60 @@ To switch Python versions in a project:
 
 ------------------------------------------------------------------------
 
+## Debugging Go
+
+Full breakpoint debugging for Go via **dap-mode** + **delve**. Set breakpoints, step through code, inspect variables --- just like Windsurf/VSCode, but inside Emacs.
+
+### Prerequisites
+
+Install delve (the Go debugger):
+```bash
+go install github.com/go-delve/delve/cmd/dlv@latest
+```
+
+### Key Bindings (in `go-mode`)
+
+All debug commands start with `C-c d`:
+
+  Key          Action
+  ------------ -----------------------
+  `C-c d b`    Toggle breakpoint
+  `C-c d d`    Start debugging
+  `C-c d n`    Next (step over)
+  `C-c d i`    Step in
+  `C-c d o`    Step out
+  `C-c d c`    Continue
+  `C-c d l`    View locals
+  `C-c d s`    View sessions
+  `C-c d r`    Restart frame
+  `C-c d q`    Quit/disconnect
+
+### Workflow
+
+1. **Open a Go file** in your project
+2. **Set breakpoints**: Navigate to a line, hit `C-c d b`
+3. **Start debugging**: `C-c d d`, select debug template
+4. **Step through**: Use `C-c d n/i/o` to navigate
+5. **Inspect**: `C-c d l` shows local variables, hover over vars with mouse
+
+### Debug Templates
+
+Pre-configured template for PAM project test-server at `personal/jps.el:252`.
+
+To add your own templates:
+```elisp
+(with-eval-after-load 'dap-dlv-go
+  (dap-register-debug-template "My Service"
+    (list :type "go"
+          :request "launch"
+          :name "My Service (Debug)"
+          :mode "debug"
+          :program "/path/to/your/cmd/main.go"
+          :args '("--flag" "value"))))
+```
+
+------------------------------------------------------------------------
+
 ## Customization
 
 -   Machine-specific tweaks live in `~/.emacs.d/custom.el` (not
@@ -183,8 +319,7 @@ To switch Python versions in a project:
     packages. Wait it out.\
 -   **Packages borked?** Nuke `~/.emacs.d/straight/` and restart.\
 -   **Console mode weird?** Make sure `$TERM` is sane (`xterm-256color`
-    usually works). On Debian/Ubuntu, install `emacs-nox` if you don't
-    want GUI deps.\
+    usually works). On Arch, install `emacs-nox` if you don't want GUI deps.\
 -   **Mac PATH hell?** The setup script patches it via
     exec-path-from-shell.
 

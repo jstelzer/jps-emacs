@@ -222,6 +222,162 @@
                           (ignore-errors (eglot-code-action-organize-imports))))
                       nil t)))
 
+;; DAP (Debug Adapter Protocol) for Go
+(use-package dap-mode
+  :straight t
+  :after (eglot go-mode)
+  :config
+  (require 'dap-dlv-go)
+  (dap-mode 1)
+  (dap-ui-mode 1)
+  (dap-tooltip-mode 1)
+  (tooltip-mode 1)
+  ;; Enable mouse hover support (optional but helpful)
+  (dap-ui-controls-mode 1))
+
+;; Key bindings for debugging (consistent with your C-c style)
+(with-eval-after-load 'dap-mode
+  (define-key go-mode-map (kbd "C-c d b") #'dap-breakpoint-toggle)
+  (define-key go-mode-map (kbd "C-c d d") #'dap-debug)
+  (define-key go-mode-map (kbd "C-c d n") #'dap-next)
+  (define-key go-mode-map (kbd "C-c d i") #'dap-step-in)
+  (define-key go-mode-map (kbd "C-c d o") #'dap-step-out)
+  (define-key go-mode-map (kbd "C-c d c") #'dap-continue)
+  (define-key go-mode-map (kbd "C-c d r") #'dap-restart-frame)
+  (define-key go-mode-map (kbd "C-c d q") #'dap-disconnect)
+  (define-key go-mode-map (kbd "C-c d l") #'dap-ui-locals)
+  (define-key go-mode-map (kbd "C-c d s") #'dap-ui-sessions))
+
+;; Debug template for PAM test-server (adjust path as needed)
+(with-eval-after-load 'dap-dlv-go
+  (dap-register-debug-template "PAM Test Server"
+    (list :type "go"
+          :request "launch"
+          :name "Start Test Server (Debug)"
+          :mode "debug"
+          :buildFlags ["-gcflags=all=-N -l"]
+          :program (expand-file-name "~/projects/llc.neverlight/pam/cmd/local/start-test-server/main.go")
+          :cwd (expand-file-name "~/projects/llc.neverlight/pam")
+          :args nil)))
+
+(with-eval-after-load 'dap-ui
+  ;; Make the paused line pop (works well on manoj-dark)
+  (when (facep 'dap-ui-marker-face)
+    (set-face-attribute 'dap-ui-marker-face nil
+                        :background "goldenrod" :foreground "black"
+                        :weight 'bold :inherit 'default :extend t))
+
+  ;; Breakpoints: verified vs pending
+  (when (facep 'dap-ui-verified-breakpoint-face)
+    (set-face-attribute 'dap-ui-verified-breakpoint-face nil
+                        :background "firebrick" :foreground "white" :weight 'bold))
+  (when (facep 'dap-ui-pending-breakpoint-face)
+    (set-face-attribute 'dap-ui-pending-breakpoint-face nil
+                        :background "DarkRed" :foreground "white")))
+(require 'dap-hydra)
+(define-key go-mode-map (kbd "C-c d h") #'dap-hydra)
+(setq dap-ui-marker-glyph "▶")
+
+;;; ============================================================================
+;;; Go Development Tools (staticcheck, structlayout)
+;;; ============================================================================
+
+;; External binaries required (install with go install):
+;;   go install honnef.co/go/tools/cmd/staticcheck@latest
+;;   go install honnef.co/go/tools/cmd/structlayout@latest
+;;   go install honnef.co/go/tools/cmd/structlayout-pretty@latest
+;;   go install honnef.co/go/tools/cmd/structlayout-optimize@latest
+
+;; --- Staticcheck integration (Eglot-friendly; uses compilation-mode) ---
+(defun jps-go-staticcheck-project ()
+  "Run staticcheck ./... from the current project root."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "staticcheck ./...")))
+
+(defun jps-go-staticcheck-pkg ()
+  "Run staticcheck . in the current buffer's package directory."
+  (interactive)
+  (let ((default-directory (or (locate-dominating-file default-directory "go.mod")
+                               default-directory)))
+    (compile "staticcheck .")))
+
+;; Handy bindings in go-mode:
+(with-eval-after-load 'go-mode
+  (define-key go-mode-map (kbd "C-c C-s p") #'jps-go-staticcheck-project)
+  (define-key go-mode-map (kbd "C-c C-s .") #'jps-go-staticcheck-pkg))
+
+;; --- Structlayout helpers ---
+(defun jps--symbol-at-point-or-read (prompt)
+  (let* ((sym (thing-at-point 'symbol t))
+         (def (and sym (substring-no-properties sym))))
+    (read-string prompt def)))
+
+(defun jps-structlayout (type-name)
+  "Display raw struct layout for TYPE-NAME using structlayout on the current buffer."
+  (interactive (list (jps--symbol-at-point-or-read "Struct type: ")))
+  (let ((buf (get-buffer-create (format "*structlayout %s*" type-name))))
+    (with-current-buffer buf (erase-buffer))
+    (call-process-region
+     (point-min) (point-max) "structlayout" nil buf nil type-name)
+    (pop-to-buffer buf)
+    (special-mode)))
+
+(defun jps-structlayout-pretty (type-name)
+  "Display pretty ASCII layout for TYPE-NAME using structlayout | structlayout-pretty."
+  (interactive (list (jps--symbol-at-point-or-read "Struct type: ")))
+  (let ((tmp (generate-new-buffer " *structlayout-tmp*"))
+        (out (get-buffer-create (format "*structlayout-pretty %s*" type-name))))
+    (unwind-protect
+        (progn
+          (call-process-region (point-min) (point-max) "structlayout" nil tmp nil type-name)
+          (with-current-buffer out (erase-buffer))
+          (with-current-buffer tmp
+            (call-process-region (point-min) (point-max) "structlayout-pretty" nil out))
+          (pop-to-buffer out)
+          (special-mode))
+      (when (buffer-live-p tmp) (kill-buffer tmp)))))
+
+(defun jps-structlayout-optimize (type-name)
+  "Suggest optimal field ordering for TYPE-NAME via structlayout-optimize."
+  (interactive (list (jps--symbol-at-point-or-read "Struct type: ")))
+  (let ((buf (get-buffer-create (format "*structlayout-optimize %s*" type-name))))
+    (with-current-buffer buf (erase-buffer))
+    (call-process-region
+     (point-min) (point-max) "structlayout-optimize" nil buf nil type-name)
+    (pop-to-buffer buf)
+    (special-mode)))
+
+(with-eval-after-load 'go-mode
+  (define-key go-mode-map (kbd "C-c C-l l") #'jps-structlayout)
+  (define-key go-mode-map (kbd "C-c C-l p") #'jps-structlayout-pretty)
+  (define-key go-mode-map (kbd "C-c C-l o") #'jps-structlayout-optimize))
+
+;; Usage:
+;;   Put point on the struct name (or just type it when prompted).
+;;   C-c C-l p → nice ASCII layout (padding visualized)
+;;   C-c C-l o → optimal field reordering suggestion
+;;   C-c C-l l → raw layout (useful for scripting/grepping)
+;;
+;; These pipe the current buffer into the tools, so you can even run them on unsaved edits.
+
+;; Optional transient for quick access
+(use-package transient :straight t)
+(transient-define-prefix jps-go-tools-menu ()
+  "Go Tools"
+  [["Staticcheck"
+    ("p" "project ./..." jps-go-staticcheck-project)
+    ("." "package ."     jps-go-staticcheck-pkg)]
+   ["Structlayout"
+    ("l" "raw layout"    jps-structlayout)
+    ("r" "pretty layout" jps-structlayout-pretty)
+    ("o" "optimize"      jps-structlayout-optimize)]])
+
+(with-eval-after-load 'go-mode
+  (define-key go-mode-map (kbd "C-c C-t") #'jps-go-tools-menu))
+;; Hit C-c C-t in a Go buffer for a quick pop-up of all the above.
+
 ;; Rust
 (use-package rust-mode :straight t)
 (use-package cargo     :straight t :hook (rust-mode . cargo-minor-mode))
