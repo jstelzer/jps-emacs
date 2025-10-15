@@ -236,7 +236,7 @@
   (dap-ui-controls-mode 1))
 
 ;; Key bindings for debugging (consistent with your C-c style)
-(with-eval-after-load 'dap-mode
+(with-eval-after-load 'go-mode
   (define-key go-mode-map (kbd "C-c d b") #'dap-breakpoint-toggle)
   (define-key go-mode-map (kbd "C-c d d") #'dap-debug)
   (define-key go-mode-map (kbd "C-c d n") #'dap-next)
@@ -275,7 +275,8 @@
     (set-face-attribute 'dap-ui-pending-breakpoint-face nil
                         :background "DarkRed" :foreground "white")))
 (require 'dap-hydra)
-(define-key go-mode-map (kbd "C-c d h") #'dap-hydra)
+(with-eval-after-load 'go-mode
+  (define-key go-mode-map (kbd "C-c d h") #'dap-hydra))
 (setq dap-ui-marker-glyph "▶")
 
 ;;; ============================================================================
