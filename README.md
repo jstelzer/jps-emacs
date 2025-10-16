@@ -88,6 +88,9 @@ pip install python-lsp-ruff  # Ruff integration for fast linting
 
 # Formatter (optional, blacken-mode uses this)
 pip install black
+
+# Debugger (optional, for breakpoint debugging)
+pip install debugpy
 ```
 
 ### Rust Development
@@ -98,6 +101,12 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Ensure rust-analyzer is available
 rustup component add rust-analyzer
+
+# Debugger (optional, for breakpoint debugging)
+# Arch Linux:
+yay -S codelldb-bin
+# macOS/others: download from https://github.com/vadimcn/codelldb/releases
+# or install via VSCode extension and symlink the binary
 ```
 
 ### General Tools
@@ -251,20 +260,29 @@ To switch Python versions in a project:
 
 ------------------------------------------------------------------------
 
-## Debugging Go
+## Debugging (Go, Rust, Python)
 
-Full breakpoint debugging for Go via **dap-mode** + **delve**. Set breakpoints, step through code, inspect variables --- just like Windsurf/VSCode, but inside Emacs.
+Full breakpoint debugging via **dap-mode** for Go, Rust, and Python. Set breakpoints, step through code, inspect variables --- just like Windsurf/VSCode, but inside Emacs.
 
 ### Prerequisites
 
-Install delve (the Go debugger):
+Install the debugger for your language:
+
 ```bash
+# Go - delve
 go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Rust - CodeLLDB
+# Arch: yay -S codelldb-bin
+# Others: https://github.com/vadimcn/codelldb/releases
+
+# Python - debugpy (install in each virtualenv/globally)
+pip install debugpy
 ```
 
-### Key Bindings (in `go-mode`)
+### Key Bindings
 
-All debug commands start with `C-c d`:
+**Identical across all three languages** --- all debug commands start with `C-c d`:
 
   Key          Action
   ------------ -----------------------
@@ -278,10 +296,11 @@ All debug commands start with `C-c d`:
   `C-c d s`    View sessions
   `C-c d r`    Restart frame
   `C-c d q`    Quit/disconnect
+  `C-c d h`    Debug hydra menu
 
 ### Workflow
 
-1. **Open a Go file** in your project
+1. **Open a file** in your project (`.go`, `.rs`, or `.py`)
 2. **Set breakpoints**: Navigate to a line, hit `C-c d b`
 3. **Start debugging**: `C-c d d`, select debug template
 4. **Step through**: Use `C-c d n/i/o` to navigate
@@ -289,10 +308,28 @@ All debug commands start with `C-c d`:
 
 ### Debug Templates
 
-Pre-configured template for PAM project test-server at `personal/jps.el:252`.
+Pre-configured templates available for each language:
 
-To add your own templates:
+**Go:**
+- "PAM Test Server" (custom template, see `personal/jps.el:252`)
+
+**Rust:**
+- "Rust::Run" - debug cargo binary
+- "Rust::Test" - debug cargo test
+
+**Python:**
+- "Python :: Run file" - debug current Python file
+- "Python :: Run module" - debug a Python module
+- "Python :: Pytest current file" - debug pytest on current file
+
+Python debugging automatically uses your active pyenv environment!
+
+### Adding Custom Templates
+
+Add your own debug configurations:
+
 ```elisp
+;; Go
 (with-eval-after-load 'dap-dlv-go
   (dap-register-debug-template "My Service"
     (list :type "go"
@@ -301,6 +338,24 @@ To add your own templates:
           :mode "debug"
           :program "/path/to/your/cmd/main.go"
           :args '("--flag" "value"))))
+
+;; Rust
+(with-eval-after-load 'dap-codelldb
+  (dap-register-debug-template "My Rust Binary"
+    (list :type "lldb"
+          :request "launch"
+          :name "My Rust Binary"
+          :program "${workspaceFolder}/target/debug/mybinary"
+          :args [])))
+
+;; Python
+(with-eval-after-load 'dap-python
+  (dap-register-debug-template "My Python Script"
+    (list :type "python"
+          :request "launch"
+          :name "My Python Script"
+          :program "/path/to/script.py"
+          :args [])))
 ```
 
 ------------------------------------------------------------------------
