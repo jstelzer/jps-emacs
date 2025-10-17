@@ -17,32 +17,31 @@ if [ ! -d "$EMACS_DIR" ]; then
     mkdir -p "$EMACS_DIR"
 fi
 
-# Create personal directory if it doesn't exist
-if [ ! -d "$EMACS_DIR/personal" ]; then
-    echo "Creating $EMACS_DIR/personal directory..."
-    mkdir -p "$EMACS_DIR/personal"
-fi
-
 # Function to safely create symlinks
 create_symlink() {
     local source="$1"
     local target="$2"
-    
+
     if [ -L "$target" ]; then
         echo "Removing existing symlink: $target"
         rm "$target"
+    elif [ -d "$target" ]; then
+        echo "Backing up existing directory: $target -> $target.backup"
+        mv "$target" "$target.backup"
     elif [ -f "$target" ]; then
         echo "Backing up existing file: $target -> $target.backup"
         mv "$target" "$target.backup"
     fi
-    
+
     echo "Creating symlink: $target -> $source"
     ln -s "$source" "$target"
 }
 
 # Symlink main configuration files
 create_symlink "$SCRIPT_DIR/init.el" "$EMACS_DIR/init.el"
-create_symlink "$SCRIPT_DIR/personal/jps.el" "$EMACS_DIR/personal/jps.el"
+
+# Symlink entire personal directory (contains all jps-*.el modules)
+create_symlink "$SCRIPT_DIR/personal" "$EMACS_DIR/personal"
 
 # Create necessary directories
 echo "Creating necessary directories..."

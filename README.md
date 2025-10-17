@@ -4,11 +4,15 @@ This is my personal Emacs setup. It's portable (macOS + Linux), works in
 GUI and terminal, and gives me a **modern IDE inside Emacs without the
 kitchen sink**.
 
+**Now with modular architecture** -- each feature lives in its own file.
+Don't use Rust? Comment out one line. Want to add Julia support? Drop in
+a new module. Clean separation, easy maintenance.
+
 Clone it, run one script, and you've got:\
 - A project dashboard on `C-x p` with test/build/deploy/vterm/notes
 wired in\
 - Dead-simple JSON formatters and timestamp helpers\
-- A clean, straight.el--based package setup that Just Works™\
+- A clean, straight.el-based package setup that Just Works™\
 - An environment I can rebuild on a new machine in 5 minutes
 
 ------------------------------------------------------------------------
@@ -132,12 +136,26 @@ pacman -S fd               # Arch Linux
 ## File Structure
 
     ~/emacs-config/
-    ├── init.el              # Main Emacs config
+    ├── init.el                      # Bootstrap & entry point
     ├── personal/
-    │   └── jps.el           # Custom functions and keybindings
-    ├── setup.sh             # Symlink/bootstrap script
-    ├── .gitignore           # Ignores caches & generated stuff
-    └── README.md            # This file
+    │   ├── jps.el                   # Main loader (orchestrates all modules)
+    │   ├── jps-core.el              # Foundation utilities & settings
+    │   ├── jps-completion.el        # Company, flycheck, yasnippet
+    │   ├── jps-lsp.el               # Eglot LSP configuration
+    │   ├── jps-ui.el                # Vertico, consult, embark, treemacs
+    │   ├── jps-tools.el             # Vterm, magit, docker, git-gutter
+    │   ├── jps-lang-go.el           # Go support (gopls, delve, staticcheck)
+    │   ├── jps-lang-rust.el         # Rust support (rust-analyzer, cargo)
+    │   ├── jps-lang-python.el       # Python support (pyenv, pylsp, ruff)
+    │   ├── jps-debug.el             # DAP debugging (Go/Rust/Python)
+    │   ├── jps-rest.el              # REST client & API tools
+    │   ├── jps-project.el           # Smart project commands
+    │   └── jps-ai.el                # ChatGPT integration
+    ├── setup.sh                     # Symlink/bootstrap script
+    ├── .gitignore                   # Ignores caches & generated stuff
+    └── README.md                    # This file
+
+**Modular Design**: Each module can be disabled by commenting out its `(require ...)` line in `personal/jps.el`. For example, if you don't use Rust, comment out `(require 'jps-lang-rust)`.
 
 ------------------------------------------------------------------------
 
@@ -311,7 +329,7 @@ pip install debugpy
 Pre-configured templates available for each language:
 
 **Go:**
-- "PAM Test Server" (custom template, see `personal/jps.el:252`)
+- "PAM Test Server" (custom template, see `personal/jps-debug.el:48`)
 
 **Rust:**
 - "Rust::Run" - debug cargo binary
@@ -362,9 +380,13 @@ Add your own debug configurations:
 
 ## Customization
 
--   Machine-specific tweaks live in `~/.emacs.d/custom.el` (not
-    versioned)\
--   Shared functions + bindings live in `personal/jps.el`
+-   **Machine-specific tweaks** live in `~/.emacs.d/custom.el` (not versioned)\
+-   **Modular configuration** lives in `personal/jps-*.el` files:
+    -   Add/remove features by editing `personal/jps.el` (just comment out modules you don't need)
+    -   Each module is self-contained and documented
+    -   No dependencies between language modules (jps-lang-*)
+    -   Core modules (jps-core, jps-lsp, jps-ui) are required by other modules
+-   **Add your own modules**: Create `personal/jps-mynewfeature.el`, add `(provide 'jps-mynewfeature)` at the end, then `(require 'jps-mynewfeature)` in `personal/jps.el`
 
 ------------------------------------------------------------------------
 
