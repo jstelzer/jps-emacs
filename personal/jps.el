@@ -222,10 +222,10 @@
                           (ignore-errors (eglot-code-action-organize-imports))))
                       nil t)))
 
-;; DAP (Debug Adapter Protocol) for Go
+;; DAP (Debug Adapter Protocol) for Go, Rust, Python
 (use-package dap-mode
   :straight t
-  :after (eglot go-mode)
+  :after eglot
   :config
   (require 'dap-dlv-go)
   (dap-mode 1)
@@ -357,60 +357,147 @@
 (with-eval-after-load 'dap-mode
   (require 'dap-python))
 
-(with-eval-after-load 'python-mode
-  (define-key python-mode-map (kbd "C-c d b") #'dap-breakpoint-toggle)
-  (define-key python-mode-map (kbd "C-c d d") #'dap-debug)
-  (define-key python-mode-map (kbd "C-c d n") #'dap-next)
-  (define-key python-mode-map (kbd "C-c d i") #'dap-step-in)
-  (define-key python-mode-map (kbd "C-c d o") #'dap-step-out)
-  (define-key python-mode-map (kbd "C-c d c") #'dap-continue)
-  (define-key python-mode-map (kbd "C-c d r") #'dap-restart-frame)
-  (define-key python-mode-map (kbd "C-c d q") #'dap-disconnect)
-  (define-key python-mode-map (kbd "C-c d l") #'dap-ui-locals)
-  (define-key python-mode-map (kbd "C-c d s") #'dap-ui-sessions)
-  (define-key python-mode-map (kbd "C-c d h") #'dap-hydra))
+;; Key bindings for Python debugging (set in hook to ensure proper loading)
+(defun jps--setup-python-debug-keys ()
+  "Set up Python debugging keybindings."
+  (when (fboundp 'jps-python-debug-file)
+    (define-key python-mode-map (kbd "C-c d b") #'dap-breakpoint-toggle)
+    (define-key python-mode-map (kbd "C-c d d") #'jps-python-debug-file)
+    (define-key python-mode-map (kbd "C-c d D") #'dap-debug)  ;; fallback to template selector
+    (define-key python-mode-map (kbd "C-c d n") #'dap-next)
+    (define-key python-mode-map (kbd "C-c d i") #'dap-step-in)
+    (define-key python-mode-map (kbd "C-c d o") #'dap-step-out)
+    (define-key python-mode-map (kbd "C-c d c") #'dap-continue)
+    (define-key python-mode-map (kbd "C-c d r") #'dap-restart-frame)
+    (define-key python-mode-map (kbd "C-c d q") #'dap-disconnect)
+    (define-key python-mode-map (kbd "C-c d l") #'dap-ui-locals)
+    (define-key python-mode-map (kbd "C-c d s") #'dap-ui-sessions)
+    (define-key python-mode-map (kbd "C-c d h") #'dap-hydra)))
+
+(add-hook 'python-mode-hook #'jps--setup-python-debug-keys)
+
+;; Enable dap-mode in Python buffers
+(add-hook 'python-mode-hook #'dap-mode)
+
+;; Helper to check if debugpy is available
+(defun jps--python-has-debugpy-p ()
+  "Check if debugpy is installed in the current Python environment."
+  (and jps--active-python-bin
+       (zerop (call-process jps--active-python-bin nil nil nil
+                           "-c" "import debugpy"))))
+
+;; Helper to install debugpy in current pyenv
+(defun jps-python-install-debugpy ()
+  "Install debugpy in the current pyenv environment."
+  (interactive)
+  (if jps--active-python-bin
+      (let ((pip (expand-file-name "pip" (file-name-directory jps--active-python-bin))))
+        (if (file-exists-p pip)
+            (progn
+              (message "Installing debugpy in %s..." jps--active-pyenv-version)
+              (shell-command (format "%s install debugpy" pip))
+              (message "debugpy installed successfully in %s!" jps--active-pyenv-version))
+          (user-error "pip not found for current Python: %s" jps--active-python-bin)))
+    (user-error "No active Python environment. Open a Python file first.")))
+
+;; Auto-install debugpy when debugging is first attempted
+(defun jps--ensure-debugpy-installed ()
+  "Ensure debugpy is installed, auto-installing if missing."
+  (when (and (derived-mode-p 'python-mode)
+             (not (jps--python-has-debugpy-p)))
+    (if (y-or-n-p (format "debugpy not found in %s. Install it? " jps--active-pyenv-version))
+        (jps-python-install-debugpy)
+      (user-error "debugpy is required for Python debugging. Install with: M-x jps-python-install-debugpy"))))
+
+;; Hook into dap-debug to ensure debugpy is available
+(advice-add 'dap-debug :before
+            (lambda (&rest _)
+              (when (derived-mode-p 'python-mode)
+                (jps--ensure-debugpy-installed))))
 
 ;; Configure dap-python to use the active pyenv interpreter
 (with-eval-after-load 'dap-python
   ;; Point to active pyenv python (updated by jps--activate-pyenv-for-buffer)
   (setq dap-python-debugger 'debugpy)
 
+  ;; Set a default executable (will be overridden per-buffer by jps--dap-python-setup)
+  (setq dap-python-executable (or (executable-find "python3")
+                                   (executable-find "python")
+                                   "python"))
+
   ;; Auto-configure debugpy path from active pyenv
   (defun jps--dap-python-setup ()
     "Configure dap-python to use the current pyenv Python."
     (when (and (derived-mode-p 'python-mode) jps--active-python-bin)
-      (setq dap-python-executable jps--active-python-bin)))
+      (setq-local dap-python-executable jps--active-python-bin)))
 
   (add-hook 'python-mode-hook #'jps--dap-python-setup)
 
-  ;; Debug template for Python scripts
+  ;; Ensure executable is set before any debug operation
+  (advice-add 'dap-debug :before
+              (lambda (&rest _)
+                (when (derived-mode-p 'python-mode)
+                  (unless dap-python-executable
+                    (setq dap-python-executable
+                          (or jps--active-python-bin
+                              (executable-find "python3")
+                              (executable-find "python")
+                              "python"))))))
+
+  ;; Custom function to debug current Python file with proper configuration
+  (defun jps-python-debug-file ()
+    "Debug the current Python file with a properly configured debug session."
+    (interactive)
+    (unless (derived-mode-p 'python-mode)
+      (user-error "Not in a Python buffer"))
+    (let* ((file (buffer-file-name))
+           (dir (file-name-directory file))
+           (python-exe (or jps--active-python-bin
+                          dap-python-executable
+                          (executable-find "python3")
+                          (executable-find "python")
+                          "python"))
+           (debug-config
+            (list :type "python"
+                  :request "launch"
+                  :name "Debug Python File"
+                  :program file
+                  :cwd dir
+                  :args ""
+                  :debugger 'debugpy
+                  :python python-exe)))
+      (dap-debug debug-config)))
+
+  ;; Debug template for Python scripts (with proper defaults)
   (dap-register-debug-template "Python :: Run file"
     (list :type "python"
           :args ""
-          :cwd nil
+          :cwd "${workspaceFolder}"
           :module nil
-          :program nil
+          :program "${file}"
           :request "launch"
+          :debugger 'debugpy
           :name "Python :: Run file"))
 
   (dap-register-debug-template "Python :: Run module"
     (list :type "python"
           :args ""
-          :cwd nil
+          :cwd "${workspaceFolder}"
           :module "${command:pickArgs}"
           :program nil
           :request "launch"
+          :debugger 'debugpy
           :name "Python :: Run module"))
 
   (dap-register-debug-template "Python :: Pytest current file"
     (list :type "python"
-          :args "-s"
-          :cwd nil
+          :args (list "-s" "${file}")
+          :cwd "${workspaceFolder}"
           :program nil
           :module "pytest"
           :request "launch"
-          :name "Python :: Pytest current file"
-          :args (list "-s" "${file}"))))
+          :debugger 'debugpy
+          :name "Python :: Pytest current file")))
 
 ;;; ============================================================================
 ;;; Go Development Tools (staticcheck, structlayout)
@@ -595,7 +682,10 @@
            (venv-dir (jps--pyenv-virtualenv-dir ver))
            (python-bin (or (and ver (ignore-errors (pyenv-which "python")))
                            (executable-find "python")))
-           (changed (not (equal ver jps--active-pyenv-version))))
+           (changed (not (equal ver jps--active-pyenv-version)))
+           (version-source (if (file-readable-p (expand-file-name ".python-version" root))
+                              (format ".python-version (%s)" (file-name-nondirectory (directory-file-name root)))
+                            "pyenv global")))
       (when ver (pyenv-mode-set ver))
       ;; VIRTUAL_ENV for virtualenvs
       (if venv-dir
@@ -628,7 +718,14 @@
 
       ;; Restart Eglot if env changed
       (when (and (bound-and-true-p eglot--managed-mode) changed)
-        (ignore-errors (eglot-reconnect))))))
+        (ignore-errors (eglot-reconnect)))
+
+      ;; Inform user of the active environment
+      (when changed
+        (message "Python: %s %s(from %s)"
+                 ver
+                 (if venv-dir "[virtualenv] " "")
+                 version-source)))))
 
 (add-hook 'python-mode-hook #'jps--activate-pyenv-for-buffer)
 (add-hook 'find-file-hook (lambda () (when (eq major-mode 'python-mode)
@@ -643,7 +740,25 @@
       (insert ver "\n"))
     (message "Set .python-version => %s" ver)
     (jps--activate-pyenv-for-buffer)))
+
+(defun jps-python-status ()
+  "Show current Python environment status."
+  (interactive)
+  (if jps--active-pyenv-version
+      (let* ((has-debugpy (jps--python-has-debugpy-p))
+             (venv-dir (jps--pyenv-virtualenv-dir jps--active-pyenv-version))
+             (root (or (jps--project-root) default-directory))
+             (has-version-file (file-readable-p (expand-file-name ".python-version" root))))
+        (message "Python: %s%s | debugpy: %s | source: %s | binary: %s"
+                 jps--active-pyenv-version
+                 (if venv-dir " [virtualenv]" "")
+                 (if has-debugpy "installed" "NOT INSTALLED")
+                 (if has-version-file ".python-version" "pyenv global")
+                 (or jps--active-python-bin "unknown")))
+    (message "No Python environment active. Open a Python file to activate.")))
+
 (global-set-key (kbd "C-c p y") #'jps-pyenv-switch)
+(global-set-key (kbd "C-c p i") #'jps-python-status)
 
 ;; Keep Black/Ruff/etc on the selected interpreter
 (with-eval-after-load 'blacken
@@ -1058,7 +1173,7 @@
 (global-set-key (kbd "C-c W") #'whitespace-mode)
 (global-set-key (kbd "C-c X") #'jps-toggle-transparency)
 (global-set-key (kbd "C-c a") #'align-regexp)
-(global-set-key (kbd "C-c d") #'jps-kill-line)
+(global-set-key (kbd "C-c k") #'jps-kill-line)
 (global-set-key (kbd "C-c f d") #'jps-diff-buffer)
 (global-set-key (kbd "C-c j") #'jps-json-format)
 (global-set-key (kbd "C-c l") #'add-change-log-entry)
