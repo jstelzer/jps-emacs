@@ -85,7 +85,8 @@ go install honnef.co/go/tools/cmd/structlayout-optimize@latest
 ```bash
 # Version manager (highly recommended)
 curl https://pyenv.run | bash
-
+# Create a venv
+# Create a .python-version file with the name of the venv init so we can dynamicly use the right one per repo.
 # LSP server (install in each virtualenv or globally)
 pip install 'python-lsp-server[all]'
 pip install python-lsp-ruff  # Ruff integration for fast linting
