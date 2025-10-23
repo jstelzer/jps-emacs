@@ -164,6 +164,98 @@ Detects admin vs contentapi context and stores in appropriate variable."
 (defvar jps-rest-contentapi-token nil
   "Current content API token/session for REST API calls.")
 
+(defvar jps-rest-contentapi-cookie nil
+  "Current content API session cookie.")
+
+(defun jps-rest-cookies-dir ()
+  "Get the .cookies directory for the current project."
+  (let ((root (jps--project-root)))
+    (expand-file-name ".cookies" root)))
+
+(defun jps-rest-save-cookie (category cookie)
+  "Save COOKIE for CATEGORY to file."
+  (let* ((cookies-dir (jps-rest-cookies-dir))
+         (file (expand-file-name category cookies-dir)))
+    (unless (file-directory-p cookies-dir)
+      (make-directory cookies-dir t))
+    (with-temp-file file
+      (insert cookie))
+    (message "Cookie saved to %s" file)))
+
+(defun jps-rest-load-cookie (category)
+  "Load cookie for CATEGORY from file."
+  (let ((file (expand-file-name category (jps-rest-cookies-dir))))
+    (when (file-exists-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (string-trim (buffer-string))))))
+
+(defun jps-rest-extract-cookie-from-response ()
+  "Extract Set-Cookie from *HTTP Response* and store in file and variable."
+  (interactive)
+  (let ((cookie nil)
+        (is-contentapi nil))
+    (when (get-buffer "*HTTP Response*")
+      (with-current-buffer "*HTTP Response*"
+        (save-excursion
+          (goto-char (point-min))
+          ;; Extract Set-Cookie header (case-insensitive)
+          ;; Match both raw headers and restclient-mode's // commented format
+          (when (re-search-forward "^\\(?://\\s-*\\)?[Ss]et-[Cc]ookie:\\s-*\\(.+\\)$" nil t)
+            (setq cookie (match-string 1))
+            ;; Clean up cookie (remove Path, HttpOnly, etc - keep just name=value)
+            (when (string-match "^\\([^;]+\\)" cookie)
+              (setq cookie (match-string 1 cookie)))))))
+
+    ;; Determine if this is contentapi
+    (setq is-contentapi (or (string-match-p "/contentapi/" (or (buffer-file-name) ""))
+                            (save-excursion
+                              (goto-char (point-min))
+                              (re-search-forward "contentapi\\|/login" nil t))))
+
+    (if cookie
+        (progn
+          ;; Store in variable
+          (setq jps-rest-contentapi-cookie cookie)
+          ;; Save to file
+          (jps-rest-save-cookie "contentapi" cookie)
+          ;; Update buffer
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^:session_cookie\\s-*=" nil t)
+                (replace-match (format ":session_cookie = %s" cookie) t t)
+              (goto-char (point-min))
+              (when (re-search-forward "^###" nil t)
+                (beginning-of-line)
+                (insert (format ":session_cookie = %s\n\n" cookie)))))
+          (message "Cookie extracted and saved!"))
+      (message "No Set-Cookie header found in response"))))
+
+(defun jps-rest-extract-csrf-token ()
+  "Extract CSRF token from HTML response and update :csrf_token variable.
+Searches for <input name=\"gorilla.csrf.Token\" value=\"...\"> in *HTTP Response*."
+  (interactive)
+  (let ((csrf-token nil))
+    (when (get-buffer "*HTTP Response*")
+      (with-current-buffer "*HTTP Response*"
+        (save-excursion
+          (goto-char (point-min))
+          ;; Look for gorilla.csrf.Token input field
+          (when (re-search-forward "name=\"gorilla\\.csrf\\.Token\"[^>]*value=\"\\([^\"]+\\)\"\\|value=\"\\([^\"]+\\)\"[^>]*name=\"gorilla\\.csrf\\.Token\"" nil t)
+            (setq csrf-token (or (match-string 1) (match-string 2)))))))
+
+    (if csrf-token
+        (progn
+          ;; Update :csrf_token variable in current buffer
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^:csrf_token\\s-*=.*$" nil t)
+                (progn
+                  (replace-match (format ":csrf_token = %s" csrf-token))
+                  (message "CSRF token extracted and set!"))
+              (message "No :csrf_token variable found in buffer"))))
+      (message "No gorilla.csrf.Token found in response"))))
+
 (defun jps-rest-templates-dir ()
   "Get the templates directory for the current project."
   (let ((root (jps--project-root)))
@@ -232,11 +324,16 @@ Detects admin vs contentapi context and stores in appropriate variable."
       (message "No %s token stored. Run auth/%s-login.http first." token-name token-name))))
 
 (defun jps-rest-clear-tokens ()
-  "Clear all stored REST API tokens."
+  "Clear all stored REST API tokens and cookies."
   (interactive)
   (setq jps-rest-admin-token nil)
   (setq jps-rest-contentapi-token nil)
-  (message "All tokens cleared"))
+  (setq jps-rest-contentapi-cookie nil)
+  ;; Also clear cookie files
+  (let ((cookie-file (expand-file-name "contentapi" (jps-rest-cookies-dir))))
+    (when (file-exists-p cookie-file)
+      (delete-file cookie-file)))
+  (message "All tokens and cookies cleared"))
 
 (defun jps-rest-regenerate-templates ()
   "Regenerate REST templates from lambdas.d/ YAML files."
@@ -268,14 +365,52 @@ This is advice for restclient execution to seamlessly use cached tokens."
             (replace-match (format ":token = %s" token))
             (message "Auto-injected %s token from cache" (if is-admin "admin" "contentapi"))))))))
 
-;; Add advice to auto-inject tokens before request execution
+(defun jps-rest-auto-inject-cookie (&rest _args)
+  "Auto-inject stored cookie before executing request if :session_cookie is empty.
+This loads from file if not in memory."
+  (when (eq major-mode 'restclient-mode)
+    (let* ((is-contentapi (or (string-match-p "/contentapi/" (or (buffer-file-name) ""))
+                              (save-excursion
+                                (goto-char (point-min))
+                                (re-search-forward "contentapi\\|/login" nil t))))
+           (cookie (or jps-rest-contentapi-cookie
+                       (jps-rest-load-cookie "contentapi"))))
+      (when (and is-contentapi cookie)
+        ;; Check if :session_cookie variable exists and is empty
+        (save-excursion
+          (goto-char (point-min))
+          (when (re-search-forward "^:session_cookie\\s-*=\\s-*$" nil t)
+            (replace-match (format ":session_cookie = %s" cookie))
+            (message "Auto-injected contentapi cookie from %s"
+                     (if jps-rest-contentapi-cookie "memory" "file"))))))))
+
+(defun jps-rest-inject-cookie ()
+  "Inject stored cookie into current buffer's :session_cookie variable."
+  (interactive)
+  (let ((cookie (or jps-rest-contentapi-cookie
+                    (jps-rest-load-cookie "contentapi"))))
+    (if cookie
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward "^:session_cookie\\s-*=.*$" nil t)
+              (progn
+                (replace-match (format ":session_cookie = %s" cookie))
+                (message "Injected contentapi cookie"))
+            (message "No :session_cookie variable found in buffer")))
+      (message "No contentapi cookie stored. Run auth/contentapi-login.http first."))))
+
+;; Add advice to auto-inject tokens and cookies before request execution
 (with-eval-after-load 'restclient
-  (advice-add 'restclient-http-send-current-raw :before #'jps-rest-auto-inject-token))
+  (advice-add 'restclient-http-send-current-raw :before #'jps-rest-auto-inject-token)
+  (advice-add 'restclient-http-send-current-raw :before #'jps-rest-auto-inject-cookie))
 
 ;; Keybindings
 (with-eval-after-load 'restclient
   (define-key restclient-mode-map (kbd "C-c C-l") #'jps-rest-list-templates)
-  (define-key restclient-mode-map (kbd "C-c C-i") #'jps-rest-inject-token))
+  (define-key restclient-mode-map (kbd "C-c C-i") #'jps-rest-inject-token)
+  (define-key restclient-mode-map (kbd "C-c C-k") #'jps-rest-inject-cookie)
+  (define-key restclient-mode-map (kbd "C-c C-o") #'jps-rest-extract-cookie-from-response)
+  (define-key restclient-mode-map (kbd "C-c C-r") #'jps-rest-extract-csrf-token))
 
 (define-key project-prefix-map (kbd "T") #'jps-rest-list-templates)
 (define-key project-prefix-map (kbd "R") #'jps-rest-regenerate-templates)
