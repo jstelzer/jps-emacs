@@ -225,12 +225,14 @@
   (advice-add 'dap-debug :before
               (lambda (&rest _)
                 (when (derived-mode-p 'python-mode)
-                  (unless dap-python-executable
-                    (setq dap-python-executable
-                          (or jps--active-python-bin
-                              (executable-find "python3")
-                              (executable-find "python")
-                              "python"))))))
+                  ;; Always ensure dap-python-executable is set (globally)
+                  (let ((python-exe (or jps--active-python-bin
+                                       (bound-and-true-p dap-python-executable)
+                                       (executable-find "python3")
+                                       (executable-find "python"))))
+                    (unless python-exe
+                      (user-error "Cannot find Python executable. Is pyenv configured?"))
+                    (setq dap-python-executable python-exe))))))
 
   ;; Custom function to debug current Python file with proper configuration
   (defun jps-python-debug-file ()
@@ -244,17 +246,26 @@
                           dap-python-executable
                           (executable-find "python3")
                           (executable-find "python")
-                          "python"))
-           (debug-config
-            (list :type "python"
-                  :request "launch"
-                  :name "Debug Python File"
-                  :program file
-                  :cwd dir
-                  :args ""
-                  :debugger 'debugpy
-                  :python python-exe)))
-      (dap-debug debug-config)))
+                          "python")))
+      ;; Validate that we have all required values
+      (unless file
+        (user-error "Buffer has no associated file"))
+      (unless dir
+        (user-error "Cannot determine working directory"))
+      (unless python-exe
+        (user-error "Cannot find Python executable"))
+      ;; Ensure dap-python-executable is set globally before creating session
+      (setq dap-python-executable python-exe)
+      (let ((debug-config
+             (list :type "python"
+                   :request "launch"
+                   :name "Debug Python File"
+                   :program file
+                   :cwd dir
+                   :args ""
+                   :debugger 'debugpy
+                   :python python-exe)))
+        (dap-debug debug-config))))
 
   ;; Debug template for Python scripts (with proper defaults)
   (dap-register-debug-template "Python :: Run file"
@@ -285,7 +296,7 @@
           :module "pytest"
           :request "launch"
           :debugger 'debugpy
-          :name "Python :: Pytest current file")))
+          :name "Python :: Pytest current file"))
 
 (provide 'jps-debug)
 ;;; jps-debug.el ends here
