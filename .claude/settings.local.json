@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(emacs:*)",
+      "Read(//home/mental/.emacs.d/**)",
+      "mcp__ide__getDiagnostics",
+      "Bash(python -m pip:*)",
+      "Bash(python -m debugpy:*)",
+      "Bash(cp:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

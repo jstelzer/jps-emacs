@@ -9,9 +9,18 @@
 
 (require 'stoic-operator)
 
-;; If you want different defaults on mac vs abyss, you can branch here.
-(setq stoic-operator-command "openai"
-      stoic-operator-model "gpt-5.1")
+;; Choose your backend and model
+(setq stoic-operator-backend 'ollama
+      stoic-operator-ollama-model "mistral:7b-instruct-v0.2-q6_K")
+
+;; Other ollama model options:
+;; (setq stoic-operator-ollama-model "deepseek-r1:14b")
+;; (setq stoic-operator-ollama-model "llama3.1:8b")
+
+;; Or use OpenAI instead (uncomment and set backend to 'openai):
+;; (setq stoic-operator-backend 'openai
+;;       stoic-operator-command "openai"
+;;       stoic-operator-model "gpt-4o")
 
 (stoic-operator-mode 1)
 

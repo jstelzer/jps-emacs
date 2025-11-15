@@ -1,18 +1,33 @@
 ;;; stoic-operator.el --- Stoic Operator Forge  -*- lexical-binding: t; -*-
 
+(require 'ansi-color)
 (require 'transient)
 
 (defgroup stoic-operator nil
   "Personal cognitive assistant for Stoic Operator work."
   :group 'tools)
 
+(defcustom stoic-operator-backend 'ollama
+  "Backend to use for Stoic Operator.
+Possible values: 'openai or 'ollama."
+  :type '(choice (const :tag "OpenAI" openai)
+                 (const :tag "Ollama" ollama))
+  :group 'stoic-operator)
+
 (defcustom stoic-operator-command "openai"
   "Shell command that talks to OpenAI (or other LLM)."
-  :type 'string)
+  :type 'string
+  :group 'stoic-operator)
 
-(defcustom stoic-operator-model "gpt-5.1"
-  "Model name/flag passed to `stoic-operator-command`."
-  :type 'string)
+(defcustom stoic-operator-model "gpt-4o"
+  "Model name/flag passed to `stoic-operator-command` (for OpenAI backend)."
+  :type 'string
+  :group 'stoic-operator)
+
+(defcustom stoic-operator-ollama-model "deepseek-r1:14b"
+  "Ollama model name to run for Stoic Operator."
+  :type 'string
+  :group 'stoic-operator)
 
 (defcustom stoic-operator-system-contract-file
   (expand-file-name "~/.stoic-operator-system.txt")
@@ -27,18 +42,35 @@
       (buffer-string))))
 
 (defun stoic-operator--call (task text)
-  "Call OpenAI CLI using repeated -g ROLE CONTENT messages."
-  (let* ((sys (or (stoic-operator--system-contract) ""))  ;; ensure non-nil
+  "Call the configured backend (OpenAI or Ollama) and show result in *Stoic-Operator*."
+  (let* ((sys  (or (stoic-operator--system-contract) ""))
          (user (format "%s\n\n----- INPUT -----\n\n%s" task text))
-         (buf (get-buffer-create "*Stoic-Operator*")))
+         (buf  (get-buffer-create "*Stoic-Operator*")))
     (with-current-buffer buf
       (erase-buffer)
-      (call-process stoic-operator-command
-                    nil buf nil
-                    "api" "chat.completions.create"
-                    "-m" stoic-operator-model
-                    "-g" "system" sys
-                    "-g" "user" user)
+      (pcase stoic-operator-backend
+        ('openai
+         (call-process stoic-operator-command
+                       nil buf nil
+                       "api" "chat.completions.create"
+                       "-m" stoic-operator-model
+                       "-g" "system" sys
+                       "-g" "user" user))
+        ('ollama
+         (let* ((full (format "SYSTEM:\n%s\n\nTASK:\n%s\n\n%s" sys task user))
+                (process-environment
+                 (cons "TERM=dumb" process-environment)))
+           (with-temp-buffer
+             (insert full)
+             (call-process-region (point-min) (point-max)
+                                  "ollama" nil buf nil
+                                  "run" stoic-operator-ollama-model))))
+        (_
+         (insert (format "Unknown backend: %S" stoic-operator-backend))))
+
+      ;; Strip/handle ANSI: this removes escape codes and applies faces
+      (ansi-color-apply-on-region (point-min) (point-max))
+
       (goto-char (point-min)))
     (pop-to-buffer buf)))
 
@@ -104,3 +136,4 @@ No diagnosis, no therapy talk. Be concise and clear."
             map))
 
 (provide 'stoic-operator)
+;;; stoic-operator.el ends here

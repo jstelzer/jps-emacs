@@ -33,6 +33,7 @@ wired in\
     works in X11/Wayland, runs fine over SSH\
 -   🤖 **Claude Code Menu** -- drop into AI-assisted coding from inside
     Emacs\
+-   🧘 **Stoic Operator** -- interchangeable OpenAI/Ollama integration for writing, philosophy, and non-code AI work\
 -   🌐 **REST client** -- built-in HTTP testing with token extraction and jq filtering\
 -   🗑 **Auto-save cleanup** -- saves buffers, prunes old autosaves (not
     all of them, only crusty ones)
@@ -151,7 +152,9 @@ pacman -S fd               # Arch Linux
     │   ├── jps-debug.el             # DAP debugging (Go/Rust/Python)
     │   ├── jps-rest.el              # REST client & API tools
     │   ├── jps-project.el           # Smart project commands
-    │   └── jps-ai.el                # ChatGPT integration
+    │   ├── jps-ai.el                # ChatGPT integration
+    │   ├── stoic-operator.el        # Stoic Operator (OpenAI/Ollama backend)
+    │   └── jps-operator.el          # Stoic Operator config
     ├── setup.sh                     # Symlink/bootstrap script
     ├── .gitignore                   # Ignores caches & generated stuff
     └── README.md                    # This file
@@ -194,6 +197,30 @@ how to use
    `C-c g c`           → open a chat buffer anywhere.
    `C-c g r / C-c g b` → send region / whole buffer.
    `C-c g s`           → send region but keep your cursor where you were.
+
+### Stoic Operator (OpenAI/Ollama Integration)
+
+A personal cognitive assistant for writing, philosophy, zettelkasten work, and non-code AI tasks. Supports interchangeable backends (OpenAI or Ollama) for flexibility and privacy.
+
+**Why not Claude Code for this?** This is for content where subject matter might trip safety filters - philosophy, mental health journaling, controversial topics, etc. Local Ollama models give you full control.
+
+  Key        Action
+  ---------  ----------------------------------------------------------
+  `C-c o m`  Open transient menu with all commands
+  `C-c o d`  Refine region as Field Manual doctrine
+  `C-c o o`  Outline chapter from region notes
+  `C-c o t`  Translate region into different communication register
+
+**Available registers**: `operator-technical`, `partner-friendly`, `therapist-brief`, `public-readable`
+
+**Backend Configuration**:
+- **Ollama** (default): Local models, full privacy, no API costs
+  - Models: `mistral:7b-instruct-v0.2-q6_K`, `deepseek-r1:14b`, `llama3.1:8b`
+  - Configure in `personal/jps-operator.el`
+- **OpenAI**: API-based, requires `openai` CLI tool
+  - Switch by setting `stoic-operator-backend` to `'openai`
+
+**System Contract**: Place your custom system prompt in `~/.stoic-operator-system.txt` to define the AI's voice/personality across all commands.
 
 ### Project Dashboard (`C-x p`)
 
