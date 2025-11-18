@@ -25,13 +25,11 @@
   (let ((default-directory (jps--project-root)))
     (consult-ripgrep default-directory)))
 
-(defun jps-project-vterm ()
-  "Open a vterm in the project root."
+(defun jps-project-agent-shell ()
+  "Open an agent-shell in the project root."
   (interactive)
-  (let* ((root (jps--project-root))
-         (name (format "*vterm: %s*" (file-name-nondirectory (directory-file-name root)))))
-    (let ((default-directory root))
-      (vterm (generate-new-buffer-name name)))))
+  (let ((default-directory (jps--project-root)))
+    (agent-shell)))
 
 (defun jps-project-magit ()
   "Open Magit status in the project."
@@ -126,7 +124,7 @@
 
 ;; Bind under C-x p …
 (define-key project-prefix-map (kbd "R") #'jps-project-ripgrep)
-(define-key project-prefix-map (kbd "S") #'jps-project-vterm)
+(define-key project-prefix-map (kbd "S") #'jps-project-agent-shell)
 (define-key project-prefix-map (kbd "M") #'jps-project-magit)
 (define-key project-prefix-map (kbd "T") #'jps-project-test)
 (define-key project-prefix-map (kbd "B") #'jps-project-build)
@@ -139,7 +137,7 @@
   (which-key-add-keymap-based-replacements
     project-prefix-map
     "R" "ripgrep"
-    "S" "shell (vterm)"
+    "S" "shell (agent)"
     "M" "magit status"
     "T" "test"
     "B" "build"

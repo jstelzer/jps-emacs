@@ -31,7 +31,8 @@
 
 (require 'jps-lsp)         ; Eglot base (needs jps-core)
 (require 'jps-ui)          ; Vertico, consult, embark, treemacs, which-key
-(require 'jps-tools)       ; Vterm, magit, git-gutter, docker, etc.
+(require 'jps-agent-shell) ; Agent-shell LLM integration
+(require 'jps-tools)       ; Magit, git-gutter, docker, etc.
 
 ;;; ============================================================================
 ;;; Language Support Layer

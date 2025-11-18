@@ -7,7 +7,7 @@
 (require 'use-package)
 
 ;;; ============================================================================
-;;; ChatGPT (chatgpt-shell) + vterm integration
+;;; ChatGPT (chatgpt-shell) + agent-shell integration
 ;;; ============================================================================
 
 ;; Requires: env var OPENAI_API_KEY set in your shell (you already have one).
@@ -30,18 +30,18 @@
    ("C-c g r" . chatgpt-shell-send-region)
    ("C-c g b" . chatgpt-shell-send-buffer)))
 
-;; Side-by-side: project vterm (left) + ChatGPT buffer (right)
-(defun jps-chatgpt-vterm-and-chat ()
-  "Open a vterm in the project root on the left and ChatGPT on the right."
+;; Side-by-side: project agent-shell (left) + ChatGPT buffer (right)
+(defun jps-chatgpt-agent-and-chat ()
+  "Open an agent-shell in the project root on the left and ChatGPT on the right."
   (interactive)
   (delete-other-windows)
-  (call-interactively #'jps-project-vterm)  ;; you already defined this
+  (call-interactively #'jps-project-agent-shell)
   (split-window-right)
   (other-window 1)
   (chatgpt-shell)
   (other-window -1))
 
-(global-set-key (kbd "C-c g v") #'jps-chatgpt-vterm-and-chat)
+(global-set-key (kbd "C-c g v") #'jps-chatgpt-agent-and-chat)
 
 ;; QoL: send region to ChatGPT but keep focus in the current window
 (defun jps-chatgpt-send-region-stay (beg end)

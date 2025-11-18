@@ -184,7 +184,7 @@
 (global-set-key (kbd "C-c T") (lambda () (interactive) (load-theme 'manoj-dark)))
 (global-set-key (kbd "C-c W") #'whitespace-mode)
 (global-set-key (kbd "C-c X") #'jps-toggle-transparency)
-(global-set-key (kbd "C-c a") #'align-regexp)
+(global-set-key (kbd "C-c A") #'align-regexp)
 (global-set-key (kbd "C-c k") #'jps-kill-line)
 (global-set-key (kbd "C-c f d") #'jps-diff-buffer)
 (global-set-key (kbd "C-c j") #'jps-json-format)

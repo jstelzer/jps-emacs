@@ -180,7 +180,7 @@ pacman -S fd               # Arch Linux
   `C-c F`    Toggle fullscreen
   `C-c X`    Toggle transparency
   `C-c W`    Toggle whitespace-mode
-  `C-c a`    Align by regexp
+  `C-c A`    Align by regexp
   `C-c s`    Sort lines
   `C-c l`    Add change log entry
   `C-c x`    Configure platform settings

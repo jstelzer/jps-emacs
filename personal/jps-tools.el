@@ -1,7 +1,7 @@
 ;;; jps-tools.el --- External development tools integration -*- lexical-binding: t -*-
 ;;; Commentary:
 ;; Integrations for various development tools:
-;; - vterm (terminal emulator)
+;; - agent-shell (LLM-powered terminal)
 ;; - magit (git interface)
 ;; - git-gutter (show git diff in gutter)
 ;; - deadgrep (fast grep)
@@ -17,7 +17,9 @@
 ;;; External Tools Integration
 ;;; ============================================================================
 
-(use-package vterm :straight t)
+;; Agent-shell is loaded via jps-agent-shell.el
+;; Keep vterm as optional fallback for non-LLM terminal sessions
+(use-package vterm :straight t :defer t)
 
 (use-package magit :straight t
   :bind (("C-x g" . magit-status)))
