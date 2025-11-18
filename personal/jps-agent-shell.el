@@ -19,8 +19,10 @@
 ;;; ============================================================================
 
 ;; Shell-maker - required dependency for agent-shell
+;; Pinned to v0.84.1+ (required for agent-shell compatibility)
 (use-package shell-maker
-  :straight (shell-maker :type git :host github :repo "xenodium/shell-maker")
+  :straight (shell-maker :type git :host github :repo "xenodium/shell-maker"
+                         :ref "v0.84.1")
   :demand t)
 
 ;; ACP (Anthropic Claude Protocol) - required dependency for agent-shell
