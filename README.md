@@ -155,6 +155,8 @@ pacman -S fd               # Arch Linux
     │   ├── jps-ai.el                # ChatGPT integration
     │   ├── stoic-operator.el        # Stoic Operator (OpenAI/Ollama backend)
     │   └── jps-operator.el          # Stoic Operator config
+    ├── site-lisp/
+    │   └── simple-httpd.el          # Vendored HTTP server (for org-roam-ui)
     ├── setup.sh                     # Symlink/bootstrap script
     ├── .gitignore                   # Ignores caches & generated stuff
     └── README.md                    # This file
@@ -287,6 +289,18 @@ When editing `.http` files:
 -   Lockfile at `straight/versions/default.el` → reproducible installs\
 -   No `package-refresh-contents`, no random version drift, no "works on
     my machine" nonsense
+
+### Vendored Dependencies
+
+Some stable, unmaintained libraries are vendored directly into the repo for self-containment:
+
+-   **simple-httpd.el** (`site-lisp/simple-httpd.el`)
+    -   Source: https://github.com/skeeto/emacs-web-server
+    -   Author: Christopher Wellons <wellons@nullprogram.com>
+    -   License: Public Domain (Unlicense)
+    -   Purpose: HTTP server for org-roam-ui graph visualization
+    -   Last upstream commit: Years ago (stable, no recent changes)
+    -   Rationale: Small (33KB), stable, public domain, easier to vendor than manage via package system
 
 ------------------------------------------------------------------------
 
