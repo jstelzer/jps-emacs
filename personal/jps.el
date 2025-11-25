@@ -55,6 +55,7 @@
 
 (require 'jps-rest)        ; REST/API development (restclient, jq, graphql)
 (require 'jps-project)     ; Smart project commands (test/build/deploy)
+(require 'jps-notes)       ; Org-roam knowledge management
 (require 'jps-ai)          ; ChatGPT shell integration
 (require 'jps-operator)    ; Stoic Operator/personal-cog work
 ;;; ============================================================================

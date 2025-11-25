@@ -5,6 +5,7 @@
 ;; This is the ONLY package manager we use - no package.el
 ;; Emacs <29 compat: some packages (e.g. project.el from MELPA) call this.
 ;; Pick font + size (family must be installed on your system)
+(setq package-enable-at-startup nil)
 (set-face-attribute 'default nil :family "MesloLGS NF" :height 160)
 (unless (fboundp 'define-completion-category)
   (defun define-completion-category (&rest _args) nil))
@@ -40,6 +41,7 @@
 
 ;; configure my custom load path
 (add-to-list 'load-path "~/.emacs.d/personal")
+(add-to-list 'load-path "~/.emacs.d/site-lisp")  ; Vendored dependencies
 
 ;; Ensure use-package is available before loading personal config
 (require 'use-package)

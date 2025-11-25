@@ -1,0 +1,22 @@
+* Overview
+Brief summary of this concept in 1-2 sentences.
+
+* Definition
+Precise definition. What is this, exactly?
+
+* Related Concepts
+- [[id:][Concept 1]] - How they relate
+- [[id:][Concept 2]] - How they relate
+
+* Source References
+Links to original forge/ documents where this concept appears:
+- [[file:~/projects/neverlight-forge-env/forge/][Document name]] - Context
+
+* Book Implications
+How this concept fits into the book structure:
+- Potential chapter/section
+- Narrative thread it belongs to
+- Dependencies (what must be explained first)
+
+* Notes
+Additional observations, questions, or refinements.
