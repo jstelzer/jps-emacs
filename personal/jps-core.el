@@ -5,6 +5,12 @@
 ;;; Code:
 
 (require 'use-package)
+(require 'map)
+;(require 'transient)
+;; Make sure transient is actually loaded at runtime
+(use-package transient
+  :straight t
+  :demand t)
 
 ;; Explicitly prevent straight from managing project.el (use built-in only)
 (when (boundp 'straight-built-in-pseudo-packages)
