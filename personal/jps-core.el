@@ -6,6 +6,17 @@
 
 (require 'use-package)
 (require 'map)
+(defun jps-delete-file-and-buffer ()
+  "Delete the file visited by the current buffer, then kill the buffer."
+  (interactive)
+  (let ((filename (buffer-file-name)))
+    (unless filename
+      (error "This buffer is not visiting a file"))
+    (when (yes-or-no-p (format "Delete file '%s'?" filename))
+      (delete-file filename)
+      (kill-this-buffer)
+      (message "Deleted file %s" filename))))
+
 ;(require 'transient)
 ;; Make sure transient is actually loaded at runtime
 (use-package transient
@@ -199,6 +210,7 @@
 (global-set-key (kbd "C-c t") #'jps-generate-timestamp)
 (global-set-key (kbd "C-c w") #'whitespace-cleanup)
 (global-set-key (kbd "C-c x") #'jps-configure-platform)
+(global-set-key (kbd "C-c D") #'jps-delete-file-and-buffer)
 
 ;;; ============================================================================
 ;;; Additional Configuration
@@ -206,6 +218,7 @@
 
 ;; Org mode
 (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
+(add-to-list 'auto-mode-alist '("\\.md\\'" . org-mode))
 
 ;; Default theme and UI
 (load-theme 'manoj-dark t)

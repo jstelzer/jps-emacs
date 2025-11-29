@@ -25,6 +25,7 @@ wired in\
 -   🛠 **Language support** -- eglot + formatters for Go, Rust, Python,
     plus snippets, company, and flycheck\
 -   🐍 **Python environment management** -- automatic pyenv virtualenv activation per project\
+-   🌿 **Per-project environments** -- direnv integration via envrc, buffer-local `.envrc` support\
 -   🧹 **Editing helpers** -- vi-style kill line, JSON pretty/flatten,
     whitespace cleanup, timestamp insert\
 -   🔍 **Search everything** -- consult + ripgrep + vertico + orderless
@@ -129,6 +130,10 @@ pacman -S fd               # Arch Linux
 # Terminal emulator (vterm)
 # macOS: ships with libvterm via emacs-plus
 # Arch: pacman -S libvterm
+
+# Per-project environment variables (direnv)
+brew install direnv        # macOS
+pacman -S direnv           # Arch Linux
 ```
 
 **Note**: The config works fine without these tools --- you just won't get language-specific features until you install the relevant LSP servers and formatters.
@@ -225,6 +230,8 @@ A personal cognitive assistant for writing, philosophy, zettelkasten work, and n
 **System Contract**: Place your custom system prompt in `~/.stoic-operator-system.txt` to define the AI's voice/personality across all commands.
 
 ### Project Dashboard (`C-x p`)
+
+**Per-project environments**: Projects with `.envrc` files automatically get buffer-local environment variables via `envrc-global-mode`. Each tab/project maintains its own environment. Use `M-x envrc-allow` to authorize a new `.envrc`, `M-x envrc-reload` to refresh.
 
 These live under the built-in `project-prefix-map`:
 

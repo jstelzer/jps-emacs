@@ -10,8 +10,11 @@
 (require 'stoic-operator)
 
 ;; Choose your backend and model
+;; (setq stoic-operator-backend 'ollama
+;;       stoic-operator-ollama-model "mistral:7b-instruct-v0.2-q6_K")
+
 (setq stoic-operator-backend 'ollama
-      stoic-operator-ollama-model "mistral:7b-instruct-v0.2-q6_K")
+      stoic-operator-ollama-model "llama3.1:8b")
 
 ;; Other ollama model options:
 ;; (setq stoic-operator-ollama-model "deepseek-r1:14b")

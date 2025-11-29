@@ -9,6 +9,16 @@
 ;; project.el is already loaded by jps-core
 
 ;;; ============================================================================
+;;; Per-Project Environment (direnv)
+;;; ============================================================================
+
+;; Buffer-local environments via .envrc files
+;; Each project/tab gets its own environment variables
+(use-package envrc
+  :ensure t
+  :hook (after-init . envrc-global-mode))
+
+;;; ============================================================================
 ;;; Project Dashboard (C-x p …)
 ;;; ============================================================================
 
