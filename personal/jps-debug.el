@@ -161,8 +161,8 @@
 ;;; Python Debugging (debugpy)
 ;;; ============================================================================
 
-;; Python debugging with debugpy (install: pip install debugpy)
-;; Integrates with your pyenv setup automatically
+;; Python debugging with debugpy (install: uv pip install debugpy)
+;; Integrates with your uv .venv setup automatically
 (with-eval-after-load 'dap-mode
   (require 'dap-python))
 
@@ -193,9 +193,9 @@
   "Ensure debugpy is installed, auto-installing if missing."
   (when (and (derived-mode-p 'python-mode)
              (not (jps--python-has-debugpy-p)))
-    (if (y-or-n-p (format "debugpy not found in %s. Install it? " jps--active-pyenv-version))
-        (jps-python-install-debugpy)
-      (user-error "debugpy is required for Python debugging. Install with: M-x jps-python-install-debugpy"))))
+    (if (y-or-n-p "debugpy not found in .venv. Install dev tools? ")
+        (jps-python-install-dev-tools)
+      (user-error "debugpy is required for Python debugging. Install with: M-x jps-python-install-dev-tools"))))
 
 ;; Hook into dap-debug to ensure debugpy is available
 (advice-add 'dap-debug :before
@@ -203,9 +203,9 @@
               (when (derived-mode-p 'python-mode)
                 (jps--ensure-debugpy-installed))))
 
-;; Configure dap-python to use the active pyenv interpreter
+;; Configure dap-python to use the active venv interpreter
 (with-eval-after-load 'dap-python
-  ;; Point to active pyenv python (updated by jps--activate-pyenv-for-buffer)
+  ;; Point to active venv python (updated by jps--activate-uv-venv-for-buffer)
   (setq dap-python-debugger 'debugpy)
 
   ;; Set a default executable (will be overridden per-buffer by jps--dap-python-setup)
@@ -213,9 +213,9 @@
                                    (executable-find "python")
                                    "python"))
 
-  ;; Auto-configure debugpy path from active pyenv
+  ;; Auto-configure debugpy path from active venv
   (defun jps--dap-python-setup ()
-    "Configure dap-python to use the current pyenv Python."
+    "Configure dap-python to use the current venv Python."
     (when (and (derived-mode-p 'python-mode) jps--active-python-bin)
       (setq-local dap-python-executable jps--active-python-bin)))
 
@@ -231,7 +231,7 @@
                                        (executable-find "python3")
                                        (executable-find "python"))))
                     (unless python-exe
-                      (user-error "Cannot find Python executable. Is pyenv configured?"))
+                      (user-error "Cannot find Python executable. Is .venv configured?"))
                     (setq dap-python-executable python-exe))))))
 
   ;; Custom function to debug current Python file with proper configuration

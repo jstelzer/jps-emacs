@@ -20,14 +20,15 @@
          (python-mode . eglot-ensure)))
 
 (with-eval-after-load 'eglot
-  ;; Less chatty; better xref; faster change notifications
+  ;; Less chatty; better xref; faster change notifications; auto-shutdown idle servers
   (setq eglot-events-buffer-size 0
         eglot-extend-to-xref t
-        eglot-send-changes-idle-time 0.1)
+        eglot-send-changes-idle-time 0.1
+        eglot-autoshutdown t)
 
-  ;; Prefer LSP (capf) completions for company
+  ;; Ensure company-capf is first (LSP completions) but keep yasnippet
   (with-eval-after-load 'company
-    (setq company-backends '(company-capf)))
+    (setq company-backends '(company-capf company-yasnippet)))
 
   ;; Use Flymake in Eglot buffers; quiet Flycheck there; enable inlay hints (Emacs 29+)
   (add-hook 'eglot-managed-mode-hook

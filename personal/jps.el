@@ -41,7 +41,7 @@
 
 (require 'jps-lang-go)     ; Go support (go-mode, gopls, staticcheck, structlayout)
 (require 'jps-lang-rust)   ; Rust support (rust-mode, cargo, rust-analyzer)
-(require 'jps-lang-python) ; Python support (pyenv, blacken, pylsp, ruff)
+(require 'jps-lang-python) ; Python support (uv, basedpyright, ruff)
 
 ;;; ============================================================================
 ;;; Debugging Layer

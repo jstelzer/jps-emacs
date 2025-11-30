@@ -24,7 +24,7 @@ wired in\
     builds, deploys, compose, and notes with `C-x p`\
 -   🛠 **Language support** -- eglot + formatters for Go, Rust, Python,
     plus snippets, company, and flycheck\
--   🐍 **Python environment management** -- automatic pyenv virtualenv activation per project\
+-   🐍 **Python environment management** -- automatic .venv activation per project via uv\
 -   🌿 **Per-project environments** -- direnv integration via envrc, buffer-local `.envrc` support\
 -   🧹 **Editing helpers** -- vi-style kill line, JSON pretty/flatten,
     whitespace cleanup, timestamp insert\
@@ -85,19 +85,22 @@ go install honnef.co/go/tools/cmd/structlayout-optimize@latest
 ### Python Development
 
 ```bash
-# Version manager (highly recommended)
-curl https://pyenv.run | bash
-# Create a venv
-# Create a .python-version file with the name of the venv init so we can dynamicly use the right one per repo.
-# LSP server (install in each virtualenv or globally)
-pip install 'python-lsp-server[all]'
-pip install python-lsp-ruff  # Ruff integration for fast linting
+# Install uv (fast Python package/project manager)
+# macOS/Linux:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Arch Linux:
+pacman -S uv
 
-# Formatter (optional, blacken-mode uses this)
-pip install black
+# Install a Python version
+uv python install 3.12
 
-# Debugger (optional, for breakpoint debugging)
-pip install debugpy
+# Per-project setup (run in your project directory):
+uv venv                    # Create .venv
+uv python pin 3.12         # Create .python-version (optional)
+uv sync                    # Install deps from pyproject.toml (if exists)
+
+# Install dev tools (or use C-c C-t i in Emacs):
+uv pip install debugpy ruff basedpyright pip-audit mypy pytest
 ```
 
 ### Rust Development
@@ -153,7 +156,7 @@ pacman -S direnv           # Arch Linux
     │   ├── jps-tools.el             # Vterm, magit, docker, git-gutter
     │   ├── jps-lang-go.el           # Go support (gopls, delve, staticcheck)
     │   ├── jps-lang-rust.el         # Rust support (rust-analyzer, cargo)
-    │   ├── jps-lang-python.el       # Python support (pyenv, pylsp, ruff)
+    │   ├── jps-lang-python.el       # Python support (uv, basedpyright, ruff)
     │   ├── jps-debug.el             # DAP debugging (Go/Rust/Python)
     │   ├── jps-rest.el              # REST client & API tools
     │   ├── jps-project.el           # Smart project commands
@@ -191,7 +194,7 @@ pacman -S direnv           # Arch Linux
   `C-c s`    Sort lines
   `C-c l`    Add change log entry
   `C-c x`    Configure platform settings
-  `C-c p y`  Switch pyenv version
+  `C-c p s`  Python environment status
   `C-c C-'`  Claude Code IDE menu
   `C-c D`    Docker dashboard
 
@@ -311,19 +314,34 @@ Some stable, unmaintained libraries are vendored directly into the repo for self
 
 ------------------------------------------------------------------------
 
-## Python Development with pyenv
+## Python Development with uv
 
-This config automatically detects and activates pyenv versions/virtualenvs:
+This config automatically detects and activates `.venv` directories:
 
-1. **Per-project Python versions**: Reads `.python-version` files
-2. **Virtualenv support**: Auto-activates pyenv virtualenvs
-3. **LSP integration**: Configures Eglot with correct Python paths
-4. **Tool integration**: Black formatter uses project's Python
+1. **Per-project venvs**: Auto-detects `.venv` in project root (or parent dirs)
+2. **LSP integration**: Configures basedpyright with correct venv paths
+3. **Tool integration**: All tools run via `uv run` for automatic venv activation
+4. **One-command setup**: `C-c C-t i` installs all dev tools into the venv
 
-To switch Python versions in a project:
-- Use `C-c p y` to interactively select a pyenv version
-- Creates/updates `.python-version` in project root
-- Automatically restarts LSP with new environment
+**Workflow:**
+```bash
+cd your-project
+uv venv                    # Create .venv
+uv python pin 3.12         # Optional: pin Python version
+```
+
+Then open a `.py` file in Emacs. The venv activates automatically.
+
+**Transient menu** (`C-c C-t` in Python buffers):
+- `v` - Create .venv
+- `S` - Sync deps (uv sync)
+- `p` - Pin Python version
+- `i` - Install dev tools (debugpy, ruff, basedpyright, etc.)
+- `s` - Show environment status
+- `c` - Lint (ruff)
+- `m` - Typecheck (mypy)
+- `a` - Audit vulnerabilities (pip-audit)
+- `t`/`T` - Run tests (project/file)
 
 ------------------------------------------------------------------------
 
@@ -343,8 +361,8 @@ go install github.com/go-delve/delve/cmd/dlv@latest
 # Arch: yay -S codelldb-bin
 # Others: https://github.com/vadimcn/codelldb/releases
 
-# Python - debugpy (install in each virtualenv/globally)
-pip install debugpy
+# Python - debugpy (install in each venv, or use C-c C-t i)
+uv pip install debugpy
 ```
 
 ### Key Bindings
@@ -389,7 +407,7 @@ Pre-configured templates available for each language:
 - "Python :: Run module" - debug a Python module
 - "Python :: Pytest current file" - debug pytest on current file
 
-Python debugging automatically uses your active pyenv environment!
+Python debugging automatically uses your active `.venv` environment!
 
 ### Adding Custom Templates
 

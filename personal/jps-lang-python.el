@@ -1,10 +1,10 @@
 ;;; jps-lang-python.el --- Python language support -*- lexical-binding: t -*-
 ;;; Commentary:
 ;; Python development environment with:
-;; - pyenv for version management (auto-activates per project)
-;; - blacken for code formatting
-;; - pylsp + ruff for LSP
-;; - Automatic virtualenv detection and activation
+;; - uv for Python version & venv management
+;; - basedpyright for LSP (types, completions, navigation)
+;; - ruff for linting + formatting
+;; - Automatic .venv detection and activation
 ;;; Code:
 
 (require 'use-package)
@@ -20,107 +20,139 @@
   :mode ("\\.py\\'" . python-mode)
   :interpreter ("python" . python-mode))
 
-;; Python: env mgmt + formatter
-(use-package blacken :straight t :hook (python-mode . blacken-mode))
-
 ;;; ============================================================================
-;;; Python via pyenv (auto per project)
+;;; Python via uv (auto per project)
 ;;; ============================================================================
 
-(use-package pyenv-mode
-  :straight t
-  :commands (pyenv-mode pyenv-mode-set pyenv-versions pyenv-which)
-  :init
-  (setenv "PYENV_ROOT" (or (getenv "PYENV_ROOT")
-                           (expand-file-name "~/.pyenv")))
-  (add-to-list 'exec-path (expand-file-name "bin" (getenv "PYENV_ROOT")))
-  (pyenv-mode 1))
+;; uv workflow:
+;;   uv python install 3.12       # install Python version
+;;   uv python list               # list installed versions
+;;   uv python pin 3.12           # create .python-version
+;;   uv venv                      # create .venv in project
+;;   uv sync                      # install deps from pyproject.toml
+;;   uv pip install <pkg>         # install into .venv
 
-(defun jps--pyenv-version-for (dir)
-  "Resolve the pyenv version name for DIR (reads .python-version or pyenv default)."
-  (let* ((dot (jps--read-file-first-line (expand-file-name ".python-version" dir))))
-    (if (and dot (not (string-empty-p dot)))
-        dot
-      (string-trim (with-output-to-string
-                     (with-current-buffer standard-output
-                       (call-process "pyenv" nil t nil "version-name")))))))
+(defvar-local jps--active-venv-dir nil
+  "Path to the active .venv directory for current buffer.")
 
-(defun jps--pyenv-virtualenv-dir (version)
-  "Return directory of VERSION if it's a pyenv virtualenv; else nil."
-  (let* ((root (getenv "PYENV_ROOT"))
-         (vdir (and version (expand-file-name (concat "versions/" version) root))))
-    (when (and vdir (file-exists-p (expand-file-name "bin/activate" vdir)))
-      vdir)))
+(defvar-local jps--active-python-bin nil
+  "Path to the active Python binary for current buffer.")
 
-(defvar-local jps--active-pyenv-version nil)
-(defvar-local jps--active-python-bin nil)
+(defvar-local jps--active-python-version nil
+  "Python version string for current buffer (e.g. \"3.12.2\").")
 
-(defun jps--activate-pyenv-for-buffer ()
-  "Activate pyenv version/venv for current Python buffer & configure tools/LSP."
+(defun jps--uv-find-venv (dir)
+  "Find .venv directory starting from DIR, searching upward."
+  (let ((venv (locate-dominating-file dir ".venv")))
+    (when venv
+      (let ((venv-path (expand-file-name ".venv" venv)))
+        (when (file-directory-p venv-path)
+          venv-path)))))
+
+(defun jps--uv-python-version (python-bin)
+  "Get Python version string from PYTHON-BIN."
+  (when (and python-bin (file-executable-p python-bin))
+    (string-trim
+     (shell-command-to-string
+      (format "%s -c \"import sys; print('.'.join(map(str, sys.version_info[:3])))\""
+              (shell-quote-argument python-bin))))))
+
+(defun jps--activate-uv-venv-for-buffer ()
+  "Activate uv venv for current Python buffer & configure tools/LSP."
   (when (derived-mode-p 'python-mode)
     (let* ((root (or (jps--project-root) default-directory))
-           (ver  (jps--pyenv-version-for root))
-           (venv-dir (jps--pyenv-virtualenv-dir ver))
-           (python-bin (or (and ver (ignore-errors (pyenv-which "python")))
-                           (executable-find "python")))
-           (changed (not (equal ver jps--active-pyenv-version)))
-           (version-source (if (file-readable-p (expand-file-name ".python-version" root))
-                              (format ".python-version (%s)" (file-name-nondirectory (directory-file-name root)))
-                            "pyenv global")))
-      (when ver (pyenv-mode-set ver))
-      ;; VIRTUAL_ENV for virtualenvs
+           (venv-dir (jps--uv-find-venv root))
+           (python-bin (if venv-dir
+                           (expand-file-name "bin/python" venv-dir)
+                         (or (executable-find "python3")
+                             (executable-find "python"))))
+           (changed (not (equal venv-dir jps--active-venv-dir))))
+
+      ;; Set VIRTUAL_ENV for tools that check it
       (if venv-dir
           (progn
             (setq-local process-environment
                         (cons (concat "VIRTUAL_ENV=" venv-dir)
                               (seq-remove (lambda (s) (string-prefix-p "VIRTUAL_ENV=" s))
                                           process-environment)))
-            (add-to-list 'exec-path (expand-file-name "bin" venv-dir)))
+            ;; Add venv bin to exec-path
+            (setq-local exec-path (cons (expand-file-name "bin" venv-dir) exec-path)))
+        ;; No venv - clear VIRTUAL_ENV
         (setq-local process-environment
                     (seq-remove (lambda (s) (string-prefix-p "VIRTUAL_ENV=" s))
                                 process-environment)))
-      ;; Interpreter for REPL/tools
+
+      ;; Set Python interpreter
       (when python-bin
         (setq-local python-shell-interpreter python-bin)
-        (setq jps--active-python-bin python-bin))
-      (setq jps--active-pyenv-version ver)
+        (setq jps--active-python-bin python-bin)
+        (setq jps--active-python-version (jps--uv-python-version python-bin)))
 
-      ;; Eglot server config (pylsp + ruff; pyright-based clients also hinted)
-      (setq-local eglot-workspace-configuration
-                  (let* ((base (or eglot-workspace-configuration '()))
-                         (pyroot (expand-file-name "versions" (getenv "PYENV_ROOT")))
-                         (venv-name (and venv-dir (file-name-nondirectory (directory-file-name venv-dir)))))
-                    (append
-                     `((python . ((venvPath . ,pyroot) (venv . ,venv-name)))
-                       (pyright . ((venvPath . ,pyroot) (venv . ,venv-name)))
-                       (basedpyright . ((venvPath . ,pyroot) (venv . ,venv-name)))
-                       (pylsp . ((plugins . ((jedi . ((environment . ,(or venv-dir "")))))))))
-                     base)))
+      (setq jps--active-venv-dir venv-dir)
 
-      ;; Restart Eglot if env changed
+      ;; Eglot server config (basedpyright venv awareness)
+      (when venv-dir
+        (setq-local eglot-workspace-configuration
+                    (let ((base (or eglot-workspace-configuration '()))
+                          (venv-parent (file-name-directory (directory-file-name venv-dir))))
+                      (append
+                       `((python . ((venvPath . ,venv-parent) (venv . ".venv")))
+                         (basedpyright . ((venvPath . ,venv-parent) (venv . ".venv"))))
+                       base))))
+
+      ;; Restart Eglot if venv changed
       (when (and (bound-and-true-p eglot--managed-mode) changed)
         (ignore-errors (eglot-reconnect)))
 
       ;; Inform user of the active environment
       (when changed
-        (message "Python: %s %s(from %s)"
-                 ver
-                 (if venv-dir "[virtualenv] " "")
-                 version-source)))))
+        (if venv-dir
+            (message "Python: %s [.venv] @ %s"
+                     (or jps--active-python-version "unknown")
+                     (abbreviate-file-name venv-dir))
+          (message "Python: %s (system)" (or jps--active-python-version "unknown")))))))
 
-(add-hook 'python-mode-hook #'jps--activate-pyenv-for-buffer)
+(add-hook 'python-mode-hook #'jps--activate-uv-venv-for-buffer)
 (add-hook 'find-file-hook (lambda () (when (eq major-mode 'python-mode)
-                                       (jps--activate-pyenv-for-buffer))))
+                                       (jps--activate-uv-venv-for-buffer))))
 
-(defun jps-pyenv-switch (&optional version)
-  "Interactively switch pyenv VERSION for this project/buffer and refresh Eglot."
+;;; ============================================================================
+;;; uv Project Commands
+;;; ============================================================================
+
+(defun jps-uv-venv-create ()
+  "Create a .venv in the current project using uv."
   (interactive)
-  (let* ((ver (or version (completing-read "pyenv version: " (pyenv-versions))))
-         (root (or (jps--project-root) default-directory)))
-    (with-temp-file (expand-file-name ".python-version" root)
-      (insert ver "\n"))
-    (message "Set .python-version => %s" ver)
-    (jps--activate-pyenv-for-buffer)))
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "uv venv")
+    (run-at-time 2 nil #'jps--activate-uv-venv-for-buffer)))
+
+(defun jps-uv-sync ()
+  "Sync dependencies from pyproject.toml using uv."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "uv sync")))
+
+(defun jps-uv-add (package)
+  "Add PACKAGE to project dependencies using uv."
+  (interactive "sPackage to add: ")
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile (format "uv add %s" (shell-quote-argument package)))))
+
+(defun jps-uv-python-pin (version)
+  "Pin Python VERSION for current project (creates .python-version)."
+  (interactive
+   (list (completing-read "Python version: "
+                          (split-string
+                           (shell-command-to-string "uv python list --only-installed | awk '{print $1}'")
+                           "\n" t))))
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (shell-command (format "uv python pin %s" (shell-quote-argument version)))
+    (message "Pinned Python %s" version)))
 
 ;; Helper to check if debugpy is available
 (defun jps--python-has-debugpy-p ()
@@ -129,62 +161,148 @@
        (zerop (call-process jps--active-python-bin nil nil nil
                            "-c" "import debugpy"))))
 
-;; Helper to install debugpy in current pyenv
-(defun jps-python-install-debugpy ()
-  "Install debugpy in the current pyenv environment."
+;; Install all dev tools in current venv
+(defvar jps-python-dev-tools
+  '("debugpy" "ruff" "basedpyright" "pip-audit" "mypy" "pytest")
+  "Python development tools to install via `jps-python-install-dev-tools'.")
+
+(defun jps-python-install-dev-tools ()
+  "Install all dev tools in the current venv using uv."
   (interactive)
-  (if jps--active-python-bin
-      (let ((pip (expand-file-name "pip" (file-name-directory jps--active-python-bin))))
-        (if (file-exists-p pip)
-            (progn
-              (message "Installing debugpy in %s..." jps--active-pyenv-version)
-              (shell-command (format "%s install debugpy" pip))
-              (message "debugpy installed successfully in %s!" jps--active-pyenv-version))
-          (user-error "pip not found for current Python: %s" jps--active-python-bin)))
-    (user-error "No active Python environment. Open a Python file first.")))
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory))
+         (tools (string-join jps-python-dev-tools " ")))
+    (if jps--active-venv-dir
+        (compile (format "uv pip install %s" tools))
+      (user-error "No .venv found. Run `jps-uv-venv-create' first"))))
 
 (defun jps-python-status ()
   "Show current Python environment status."
   (interactive)
-  (if jps--active-pyenv-version
-      (let* ((has-debugpy (jps--python-has-debugpy-p))
-             (venv-dir (jps--pyenv-virtualenv-dir jps--active-pyenv-version))
-             (root (or (jps--project-root) default-directory))
-             (has-version-file (file-readable-p (expand-file-name ".python-version" root))))
-        (message "Python: %s%s | debugpy: %s | source: %s | binary: %s"
-                 jps--active-pyenv-version
-                 (if venv-dir " [virtualenv]" "")
-                 (if has-debugpy "installed" "NOT INSTALLED")
-                 (if has-version-file ".python-version" "pyenv global")
-                 (or jps--active-python-bin "unknown")))
-    (message "No Python environment active. Open a Python file to activate.")))
+  (let* ((has-debugpy (jps--python-has-debugpy-p))
+         (root (or (jps--project-root) default-directory))
+         (has-pyproject (file-exists-p (expand-file-name "pyproject.toml" root))))
+    (message "Python: %s | venv: %s | debugpy: %s | pyproject.toml: %s | binary: %s"
+             (or jps--active-python-version "unknown")
+             (if jps--active-venv-dir
+                 (abbreviate-file-name jps--active-venv-dir)
+               "none")
+             (if has-debugpy "yes" "NO")
+             (if has-pyproject "yes" "no")
+             (or jps--active-python-bin "unknown"))))
 
-(global-set-key (kbd "C-c p y") #'jps-pyenv-switch)
-(global-set-key (kbd "C-c p i") #'jps-python-status)
+(global-set-key (kbd "C-c p s") #'jps-python-status)
 
-;; Keep Black/Ruff/etc on the selected interpreter
-(with-eval-after-load 'blacken
-  (add-hook 'python-mode-hook
-            (lambda ()
-              (when jps--active-python-bin
-                (setq-local blacken-executable
-                            (or (executable-find "black")
-                                (expand-file-name "black" (concat (file-name-directory jps--active-python-bin) "../bin/"))))))))
+;;; ============================================================================
+;;; Advanced Tooling
+;;; ============================================================================
 
-;; LSP server choice for Python: pylsp + ruff (single LSP lane)
+;; External tools (install via jps-python-install-dev-tools or uv pip install):
+;;   ruff           # linting + formatting
+;;   pip-audit      # vulnerability scanning
+;;   mypy           # type checking
+;;   pytest         # testing
+;;   basedpyright   # LSP server
+
+(defun jps-python-audit ()
+  "Run pip-audit to check dependencies for known vulnerabilities."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "uv run pip-audit")))
+
+(defun jps-python-typecheck ()
+  "Run mypy on the current project."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "uv run mypy .")))
+
+(defun jps-python-lint ()
+  "Run ruff check on the current project."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "uv run ruff check .")))
+
+(defun jps-python-format ()
+  "Run ruff format on the current buffer's file."
+  (interactive)
+  (when buffer-file-name
+    (let ((default-directory (or (jps--project-root) default-directory)))
+      (shell-command (format "uv run ruff format %s" (shell-quote-argument buffer-file-name)))
+      (revert-buffer t t t))))
+
+(defun jps-python-test ()
+  "Run pytest on the current project."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "uv run pytest")))
+
+(defun jps-python-test-file ()
+  "Run pytest on the current file."
+  (interactive)
+  (when buffer-file-name
+    (let ((default-directory (or (jps--project-root) default-directory)))
+      (compile (format "uv run pytest %s -v" (shell-quote-argument buffer-file-name))))))
+
+;; Format and organize imports on save via ruff
+(add-hook 'python-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook
+                      (lambda ()
+                        (when (and buffer-file-name jps--active-venv-dir)
+                          (let ((default-directory (or (jps--project-root) default-directory)))
+                            (shell-command (format "uv run ruff check --select I --fix %s 2>/dev/null"
+                                                   (shell-quote-argument buffer-file-name)))
+                            (shell-command (format "uv run ruff format %s 2>/dev/null"
+                                                   (shell-quote-argument buffer-file-name))))))
+                      nil t)
+            (add-hook 'after-save-hook
+                      (lambda () (revert-buffer t t t))
+                      nil t)))
+
+;; LSP server: basedpyright (types/completions/navigation)
+;; Install: uv pip install basedpyright
 (with-eval-after-load 'eglot
-  (add-to-list 'eglot-server-programs '(python-mode . ("pylsp")))
+  (add-to-list 'eglot-server-programs '(python-mode . ("basedpyright-langserver" "--stdio")))
   (setq-default eglot-workspace-configuration
                 (append
-                 '((pylsp . ((plugins . ((pyflakes . (:enabled nil))
-                                         (mccabe . (:enabled nil))
-                                         (pycodestyle . (:enabled nil))
-                                         (ruff . (:enabled t))
-                                         (black . (:enabled nil))
-                                         (yapf . (:enabled nil))
-                                         (pydocstyle . (:enabled nil))))))
-                   (python . ((analysis . ((diagnosticMode . "openFilesOnly"))))))
+                 '((basedpyright . ((analysis . ((diagnosticMode . "openFilesOnly")
+                                                  (typeCheckingMode . "standard")
+                                                  (autoImportCompletions . t)
+                                                  (inlayHints . ((variableTypes . t)
+                                                                 (functionReturnTypes . t)
+                                                                 (callArgumentNames . t)
+                                                                 (pytestParameters . t))))))))
                  eglot-workspace-configuration)))
+
+;;; ============================================================================
+;;; Transient Menu
+;;; ============================================================================
+
+;; transient loaded in jps-core
+(transient-define-prefix jps-python-menu ()
+  "Python Commands"
+  [["Check"
+    ("c" "Lint (ruff)"    jps-python-lint)
+    ("m" "Typecheck (mypy)" jps-python-typecheck)
+    ("a" "Audit (vulns)"  jps-python-audit)]
+   ["Test"
+    ("t" "Test (project)" jps-python-test)
+    ("T" "Test (file)"    jps-python-test-file)]
+   ["Format"
+    ("f" "Format (ruff)"  jps-python-format)]
+   ["Environment"
+    ("s" "Status"         jps-python-status)
+    ("v" "Create .venv"   jps-uv-venv-create)
+    ("S" "Sync deps"      jps-uv-sync)
+    ("p" "Pin Python"     jps-uv-python-pin)
+    ("i" "Install tools"  jps-python-install-dev-tools)]])
+
+(with-eval-after-load 'python
+  (define-key python-mode-map (kbd "C-c C-t") #'jps-python-menu))
 
 (provide 'jps-lang-python)
 ;;; jps-lang-python.el ends here

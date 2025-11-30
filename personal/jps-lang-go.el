@@ -60,6 +60,7 @@
 ;;   go install honnef.co/go/tools/cmd/structlayout@latest
 ;;   go install honnef.co/go/tools/cmd/structlayout-pretty@latest
 ;;   go install honnef.co/go/tools/cmd/structlayout-optimize@latest
+;;   go install golang.org/x/vuln/cmd/govulncheck@latest
 
 ;; --- Staticcheck integration (Eglot-friendly; uses compilation-mode) ---
 (defun jps-go-staticcheck-project ()
@@ -76,10 +77,27 @@
                                default-directory)))
     (compile "staticcheck .")))
 
+;; --- Govulncheck integration (vulnerability scanning) ---
+(defun jps-go-vulncheck-project ()
+  "Run govulncheck ./... from the current project root."
+  (interactive)
+  (let* ((root (jps--project-root))
+         (default-directory (or root default-directory)))
+    (compile "govulncheck ./...")))
+
+(defun jps-go-vulncheck-pkg ()
+  "Run govulncheck . in the current buffer's package directory."
+  (interactive)
+  (let ((default-directory (or (locate-dominating-file default-directory "go.mod")
+                               default-directory)))
+    (compile "govulncheck .")))
+
 ;; Handy bindings in go-mode:
 (with-eval-after-load 'go-mode
   (define-key go-mode-map (kbd "C-c C-s p") #'jps-go-staticcheck-project)
-  (define-key go-mode-map (kbd "C-c C-s .") #'jps-go-staticcheck-pkg))
+  (define-key go-mode-map (kbd "C-c C-s .") #'jps-go-staticcheck-pkg)
+  (define-key go-mode-map (kbd "C-c C-v p") #'jps-go-vulncheck-project)
+  (define-key go-mode-map (kbd "C-c C-v .") #'jps-go-vulncheck-pkg))
 
 ;; --- Structlayout helpers ---
 (defun jps--symbol-at-point-or-read (prompt)
@@ -135,13 +153,15 @@
 ;;
 ;; These pipe the current buffer into the tools, so you can even run them on unsaved edits.
 
-;; Optional transient for quick access
-(use-package transient :straight t)
+;; Transient menu for quick access (transient loaded in jps-core)
 (transient-define-prefix jps-go-tools-menu ()
   "Go Tools"
   [["Staticcheck"
-    ("p" "project ./..." jps-go-staticcheck-project)
-    ("." "package ."     jps-go-staticcheck-pkg)]
+    ("s" "project ./..." jps-go-staticcheck-project)
+    ("S" "package ."     jps-go-staticcheck-pkg)]
+   ["Vulncheck"
+    ("v" "project ./..." jps-go-vulncheck-project)
+    ("V" "package ."     jps-go-vulncheck-pkg)]
    ["Structlayout"
     ("l" "raw layout"    jps-structlayout)
     ("r" "pretty layout" jps-structlayout-pretty)

@@ -6,6 +6,16 @@
 
 (require 'use-package)
 (require 'map)
+
+;;; ============================================================================
+;;; Configuration & File Modes
+;;; ============================================================================
+
+(use-package dockerfile-mode :straight t)
+(use-package yaml-mode       :straight t)
+(add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-mode))
+(add-to-list 'auto-mode-alist '("\\`Dockerfile\\'" . dockerfile-mode))
+
 (defun jps-delete-file-and-buffer ()
   "Delete the file visited by the current buffer, then kill the buffer."
   (interactive)
@@ -65,13 +75,9 @@
 (defvar eglot-workspace-configuration nil
   "Per-language configuration map passed to LSP servers via Eglot.")
 
-;; Python shell defaults (kept for convenience; pyenv will override interpreter)
-(setq py-python-command "ipython"
-      py-python-command-args '("--pylab" "inline" "--colors" "NoColor"))
 
 ;; File handling
 (setq backup-directory-alist `(("." . "~/.emacs.d/saves")))
-(global-font-lock-mode t)
 
 ;; Interface improvements
 (fset 'yes-or-no-p 'y-or-n-p)
@@ -148,12 +154,6 @@
   (interactive)
   (when (eq system-type 'darwin)
     (message "Configuring macOS...")
-    (when (display-graphic-p)
-      (setq default-input-method "MacOSX")
-      (dolist (event '([wheel-down] [double-wheel-down] [triple-wheel-down]))
-        (global-set-key event (lambda () (interactive) (scroll-down 1))))
-      (dolist (event '([wheel-up] [double-wheel-up] [triple-wheel-up]))
-        (global-set-key event (lambda () (interactive) (scroll-up 1)))))
     (jps-add-path "/usr/local/bin")))
 
 ;;; ============================================================================
@@ -216,7 +216,7 @@
 ;;; Additional Configuration
 ;;; ============================================================================
 
-;; Org mode
+;; Org mode (also for .md - org table editing is superior, toggle with M-x markdown-mode)
 (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
 (add-to-list 'auto-mode-alist '("\\.md\\'" . org-mode))
 

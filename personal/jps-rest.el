@@ -412,13 +412,13 @@ This loads from file if not in memory."
   (define-key restclient-mode-map (kbd "C-c C-o") #'jps-rest-extract-cookie-from-response)
   (define-key restclient-mode-map (kbd "C-c C-r") #'jps-rest-extract-csrf-token))
 
-(define-key project-prefix-map (kbd "T") #'jps-rest-list-templates)
-(define-key project-prefix-map (kbd "R") #'jps-rest-regenerate-templates)
+(define-key project-prefix-map (kbd "H") #'jps-rest-list-templates)
+(define-key project-prefix-map (kbd "E") #'jps-rest-regenerate-templates)
 
 (with-eval-after-load 'which-key
   (which-key-add-keymap-based-replacements project-prefix-map
-    "T" "REST templates"
-    "R" "Regenerate templates"))
+    "H" "HTTP templates"
+    "E" "rEgenerate templates"))
 
 (provide 'jps-rest)
 ;;; jps-rest.el ends here

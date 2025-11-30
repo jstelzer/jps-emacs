@@ -23,8 +23,7 @@
   (setq company-idle-delay 0.05
         company-require-match nil
         company-minimum-prefix-length 0
-        company-frontends '(company-pseudo-tooltip-frontend company-preview-frontend)
-        company-backends '(company-capf)))
+        company-frontends '(company-pseudo-tooltip-frontend company-preview-frontend)))
 
 (provide 'jps-completion)
 ;;; jps-completion.el ends here
