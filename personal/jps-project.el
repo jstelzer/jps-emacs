@@ -132,6 +132,12 @@
                       (format-time-string "%Y-%m-%d")))
       (save-buffer))))
 
+(defun jps-project-vterm ()
+  "Open a vterm in the project root."
+  (interactive)
+  (let ((default-directory (jps--project-root)))
+    (vterm)))
+
 ;; Bind under C-x p …
 (define-key project-prefix-map (kbd "R") #'jps-project-ripgrep)
 (define-key project-prefix-map (kbd "S") #'jps-project-agent-shell)
@@ -141,6 +147,7 @@
 (define-key project-prefix-map (kbd "D") #'jps-project-deploy)
 (define-key project-prefix-map (kbd "C") #'jps-project-open-compose)
 (define-key project-prefix-map (kbd "N") #'jps-project-notes)
+(define-key project-prefix-map (kbd "t") #'jps-project-vterm)
 (define-key project-prefix-map (kbd "r") #'jps-project-recompile)
 
 (with-eval-after-load 'which-key
