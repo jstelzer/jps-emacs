@@ -76,10 +76,9 @@ go install github.com/go-delve/delve/cmd/dlv@latest
 # Linting (optional, C-c C-s in go-mode)
 go install honnef.co/go/tools/cmd/staticcheck@latest
 
-# Struct memory layout analysis (optional, C-c C-l in go-mode)
+# Struct memory layout visualization (optional, C-c C-l in go-mode)
 go install honnef.co/go/tools/cmd/structlayout@latest
 go install honnef.co/go/tools/cmd/structlayout-pretty@latest
-go install honnef.co/go/tools/cmd/structlayout-optimize@latest
 ```
 
 ### Python Development
