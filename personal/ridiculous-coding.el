@@ -23,7 +23,7 @@
   :group 'convenience
   :prefix "ridiculous-coding-")
 
-(defcustom ridiculous-coding-intensity 0.15
+(defcustom ridiculous-coding-intensity 0.25
   "Base probability (0-1) that an effect fires on each keypress.
 Higher values = more chaos."
   :type 'float)
@@ -32,7 +32,7 @@ Higher values = more chaos."
   "Whether to play sound effects."
   :type 'boolean)
 
-(defcustom ridiculous-coding-sound-volume 0.3
+(defcustom ridiculous-coding-sound-volume 0.5
   "Volume for sound effects (0.0-1.0). Only works on some platforms."
   :type 'float)
 
