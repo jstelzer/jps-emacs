@@ -46,7 +46,11 @@
 ;; Ridiculous coding effects - make coding absurdly dramatic
 ;; Toggle: M-x ridiculous-coding-mode
 ;; Full chaos: M-x global-ridiculous-coding-mode
-(require 'ridiculous-coding)
+(use-package ridiculous-coding
+  :straight (:type git :host github :repo "jstelzer/ridiculous-coding.el")
+  :commands (ridiculous-coding-mode
+             global-ridiculous-coding-mode
+             ridiculous-coding-set-intensity))
 
 (setq claude-code-vterm-buffer-multiline-output nil)
 
