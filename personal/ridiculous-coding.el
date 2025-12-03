@@ -93,6 +93,14 @@ Falls back to text effects in terminal."
   "Whether typed characters leave ghostly afterimages."
   :type 'boolean)
 
+(defcustom ridiculous-coding-key-puff-enabled t
+  "Whether to show typed keys as expanding puffs."
+  :type 'boolean)
+
+(defcustom ridiculous-coding-demo-mode nil
+  "When non-nil, fire ALL effects on EVERY keystroke. For recordings."
+  :type 'boolean)
+
 ;;; ============================================================================
 ;;; Internal State
 ;;; ============================================================================
@@ -400,6 +408,45 @@ Sounds are loaded from `ridiculous-coding-sounds-directory'/CATEGORY/."
                                                   #'ridiculous-coding--remove-overlay ov))))
                                pos char color)))))
 
+;; Key puff - show typed key as expanding, fading puff
+(defconst ridiculous-coding--puff-colors
+  '("#FF6B6B" "#FFE66D" "#4ECDC4" "#FF8C42" "#A855F7" "#22D3EE" "#FF69B4" "#00FF88")
+  "Bright colors for key puff effect.")
+
+(defun ridiculous-coding--key-puff (char)
+  "Show CHAR as an expanding puff that scales up and fades out."
+  (when (and ridiculous-coding-key-puff-enabled
+             (not (string-match-p "[\n\t]" char)))
+    (let* ((buf (current-buffer))
+           (pos (max (1- (point)) (point-min)))
+           (color (ridiculous-coding--random-element ridiculous-coding--puff-colors))
+           (frames '((1.4 . "FF") (1.8 . "DD") (2.2 . "BB")
+                     (2.6 . "88") (2.2 . "55") (1.8 . "33")))
+           (frame-delay 0.045))
+      ;; Defer to avoid interfering with self-insert
+      (run-at-time 0 nil
+                   (lambda ()
+                     (dotimes (i (length frames))
+                       (run-at-time (* i frame-delay) nil
+                                    (lambda (frame-idx p b c col)
+                                      (when (buffer-live-p b)
+                                        (with-current-buffer b
+                                          (when (and (>= p (point-min)) (<= p (point-max)))
+                                            (let* ((frame-data (nth frame-idx frames))
+                                                   (height (car frame-data))
+                                                   (ov (make-overlay p (min (1+ p) (point-max)))))
+                                              (overlay-put ov 'priority (+ 18000 (- 10 frame-idx)))
+                                              (overlay-put ov 'ridiculous t)
+                                              (overlay-put ov 'after-string
+                                                           (propertize (upcase c) 'face
+                                                                       `(:foreground ,col
+                                                                         :height ,height
+                                                                         :weight bold)))
+                                              (push ov ridiculous-coding--overlays)
+                                              (run-at-time frame-delay nil
+                                                           #'ridiculous-coding--remove-overlay ov))))))
+                                    i pos buf char color)))))))
+
 ;; Screen flash - pulse background on combos
 (defun ridiculous-coding--flash (color)
   "Flash the screen with COLOR."
@@ -561,12 +608,15 @@ FRAME-DELAY is seconds between frames."
 
 (defun ridiculous-coding--combo-bonus ()
   "Trigger bonus effects for hitting combo threshold."
-  (ridiculous-coding--mega-combo)
-  ;; Use image boom if available, otherwise text explosion
-  (ridiculous-coding--boom-animation)
-  (ridiculous-coding--big-shake)
-  (ridiculous-coding--play-sound 'combo)
-  (message "🔥 COMBO x%d! 🔥" ridiculous-coding--combo-count))
+  (let ((count ridiculous-coding--combo-count))
+    ;; Defer all effects to run after self-insert completes
+    (run-at-time 0 nil
+                 (lambda ()
+                   (ridiculous-coding--mega-combo)
+                   (ridiculous-coding--boom-animation)
+                   (ridiculous-coding--big-shake)
+                   (ridiculous-coding--play-sound 'combo)
+                   (message "🔥 COMBO x%d! 🔥" count)))))
 
 ;;; ============================================================================
 ;;; Visual Effects: REGION SELECTION
@@ -702,7 +752,7 @@ FRAME-DELAY is seconds between frames."
 
 (defun ridiculous-coding--deletion-skull (pos)
   "Spawn a skull at POS that fades away."
-  (when (and (>= pos (point-min)) (< pos (point-max)))
+  (when (and (>= pos (point-min)) (<= pos (point-max)))
     (let* ((skull (ridiculous-coding--random-element ridiculous-coding--skull-chars))
            (ov (make-overlay pos (min (1+ pos) (point-max)))))
       (overlay-put ov 'priority 9500)
@@ -730,7 +780,7 @@ FRAME-DELAY is seconds between frames."
            (delay (* i 0.015)))
       (run-at-time delay nil
                    (lambda (p c col)
-                     (when (and (>= p (point-min)) (< p (point-max)))
+                     (when (and (>= p (point-min)) (<= p (point-max)))
                        (let ((ov (make-overlay p (min (1+ p) (point-max)))))
                          (overlay-put ov 'priority (+ 9000 (random 100)))
                          (overlay-put ov 'ridiculous t)
@@ -793,30 +843,34 @@ FRAME-DELAY is seconds between frames."
          (combo ridiculous-coding--combo-count)
          (intensity (+ ridiculous-coding-intensity
                        (* 0.01 (min combo 20))))
-         (is-newline (eq last-command-event ?\n)))
+         (is-newline (eq last-command-event ?\n))
+         (demo ridiculous-coding-demo-mode))
     ;; Special handling for newlines
     (when is-newline
       (ridiculous-coding--newline-animation))
+    ;; Key puff - the star of the show
+    (ridiculous-coding--key-puff char)
     ;; Rainbow trail - ALWAYS on when enabled (it's the baseline pop)
     (ridiculous-coding--rainbow-trail)
-    ;; Afterimage echo on every keystroke for that juicy feel
-    (when (ridiculous-coding--maybe-p 0.7)
+    ;; Afterimage echo
+    (when (or demo (ridiculous-coding--maybe-p 0.7))
       (ridiculous-coding--afterimage char))
-    ;; Explosions/blips scale with combo
-    (when (ridiculous-coding--maybe-p intensity)
-      ;; Use image blip in GUI, text explosion in terminal
+    ;; Explosions/blips
+    (when (or demo (ridiculous-coding--maybe-p intensity))
       (if (ridiculous-coding--gui-p)
           (ridiculous-coding--blip-animation)
         (ridiculous-coding--explosion-at-point))
-      (when (ridiculous-coding--maybe-p 0.3)
+      (when (or demo (ridiculous-coding--maybe-p 0.5))
         (ridiculous-coding--small-shake))
-      (when (ridiculous-coding--maybe-p 0.1)
+      (when (or demo (ridiculous-coding--maybe-p 0.3))
         (ridiculous-coding--play-sound 'typing)))
-    ;; Spirits escape occasionally
-    (when (and (> combo 5) (ridiculous-coding--maybe-p 0.15))
+    ;; Spirits - in demo mode, every 3rd keystroke
+    (when (or (and demo (= (mod combo 3) 0))
+              (and (> combo 5) (ridiculous-coding--maybe-p 0.15)))
       (ridiculous-coding--spawn-spirit char))
-    ;; Shockwaves at higher combos
-    (when (and (> combo 15) (ridiculous-coding--maybe-p 0.1))
+    ;; Shockwaves - in demo mode, every 5th keystroke
+    (when (or (and demo (= (mod combo 5) 0))
+              (and (> combo 15) (ridiculous-coding--maybe-p 0.1)))
       (ridiculous-coding--shockwave))))
 
 (defun ridiculous-coding--on-delete (deleted-length)
@@ -1017,6 +1071,16 @@ screen shake, sounds, and combo counters."
         (end (min (+ (point) 30) (point-max))))
     (ridiculous-coding--region-sparkle start end)
     (message "Region sparkle effect triggered")))
+
+(defun ridiculous-coding-test-key-puff ()
+  "Test key puff effect with a few characters."
+  (interactive)
+  (let ((chars '("A" "B" "C" "X" "Y" "Z")))
+    (dotimes (i (length chars))
+      (run-at-time (* i 0.15) nil
+                   (lambda (c)
+                     (ridiculous-coding--key-puff c))
+                   (nth i chars)))))
 
 (provide 'ridiculous-coding)
 ;;; ridiculous-coding.el ends here
