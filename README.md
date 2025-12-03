@@ -486,7 +486,7 @@ Install claude-code-acp and put it in your PATH.
 
 ```
 npm install @zed-industries/claude-code-acp
-```
-
+```                                              
+                                                 
 🔥 *Future Me: if you're reading this because you broke your config
 again, don't worry --- just reclone and run setup. You'll be fine.*

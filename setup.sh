@@ -52,6 +52,16 @@ mkdir -p "$EMACS_DIR/saves"
 mkdir -p "$EMACS_DIR/auto-save"
 mkdir -p "$EMACS_DIR/templates"
 
+# Symlink sounds directory (for ridiculous-coding and other audio effects)
+if [ -d "$SCRIPT_DIR/assets/sounds" ]; then
+    create_symlink "$SCRIPT_DIR/assets/sounds" "$EMACS_DIR/sounds"
+fi
+
+# Symlink images directory (for ridiculous-coding sprite animations)
+if [ -d "$SCRIPT_DIR/assets/images" ]; then
+    create_symlink "$SCRIPT_DIR/assets/images" "$EMACS_DIR/images"
+fi
+
 # Platform-specific setup
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "macOS detected - GUI and console modes supported"
@@ -114,6 +124,7 @@ echo "- Console and GUI support"
 echo "- Modern completion with vertico/consult"
 echo "- LSP support for development"
 echo "- Reproducible builds with lockfile support"
+echo "- Ridiculous coding mode (M-x ridiculous-coding-mode)"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]] && [ -d "$SCRIPT_DIR/../forge" ]; then
     echo "- Org-roam notes integration (Linux only, ~/notes -> forge/notes)"
