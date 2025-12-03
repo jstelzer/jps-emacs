@@ -207,6 +207,8 @@ Sounds are loaded from `ridiculous-coding-sounds-directory'/CATEGORY/."
   "Full cleanup for buffer kill - overlays and timers."
   (ridiculous-coding--cleanup-overlays)
   (ridiculous-coding--cleanup-region-effects)
+  (setq ridiculous-coding--region-active-p nil)
+  (setq ridiculous-coding--region-bounds nil)
   (ridiculous-coding--reset-combo))
 
 (defun ridiculous-coding--explosion-at-point ()
@@ -605,10 +607,15 @@ FRAME-DELAY is seconds between frames."
 (defun ridiculous-coding--region-glow (start end)
   "Create a glowing border effect around region from START to END."
   (let* ((ov (make-overlay start end))
-         (colors '("#FFFF00" "#FFDD00" "#FFBB00" "#FF9900" "#FF7700")))
+         ;; Pairs of (border-color . background-color) - backgrounds are muted versions
+         (color-pairs '(("#FFFF00" . "#3D3D00")
+                        ("#FFDD00" . "#3D3500")
+                        ("#FFBB00" . "#3D2D00")
+                        ("#FF9900" . "#3D2400")
+                        ("#FF7700" . "#3D1C00"))))
     (overlay-put ov 'priority 7000)
     (overlay-put ov 'ridiculous t)
-    (overlay-put ov 'face `(:background "#FFFF0022" :box (:line-width 2 :color "#FFFF00")))
+    (overlay-put ov 'face `(:background "#3D3D00" :box (:line-width 2 :color "#FFFF00")))
     (push ov ridiculous-coding--region-overlays)
     ;; Pulse the glow
     (let ((pulse-idx 0))
@@ -616,10 +623,12 @@ FRAME-DELAY is seconds between frames."
             (run-at-time 0 0.1
                          (lambda ()
                            (when (and (overlayp ov) (overlay-buffer ov))
-                             (let ((color (nth (mod pulse-idx (length colors)) colors)))
+                             (let* ((pair (nth (mod pulse-idx (length color-pairs)) color-pairs))
+                                    (border-color (car pair))
+                                    (bg-color (cdr pair)))
                                (overlay-put ov 'face
-                                            `(:background ,(concat color "22")
-                                              :box (:line-width 2 :color ,color)))
+                                            `(:background ,bg-color
+                                              :box (:line-width 2 :color ,border-color)))
                                (setq pulse-idx (1+ pulse-idx))))))))))
 
 (defun ridiculous-coding--cleanup-region-effects ()
@@ -630,12 +639,47 @@ FRAME-DELAY is seconds between frames."
   (mapc #'delete-overlay ridiculous-coding--region-overlays)
   (setq ridiculous-coding--region-overlays nil))
 
-(defun ridiculous-coding--on-region-activate ()
-  "Handle region activation - selection started."
-  (when (and ridiculous-coding-particles-enabled (use-region-p))
+(defvar-local ridiculous-coding--region-active-p nil
+  "Track whether region was active last command, for edge detection.")
+
+(defvar-local ridiculous-coding--region-bounds nil
+  "Track last region bounds (start . end) to detect changes.")
+
+(defun ridiculous-coding--check-region ()
+  "Check region state after each command, trigger effects on activation/change."
+  (let ((now-active (and (region-active-p) (use-region-p))))
+    (cond
+     ;; Region just became active
+     ((and now-active (not ridiculous-coding--region-active-p))
+      (setq ridiculous-coding--region-active-p t)
+      (ridiculous-coding--region-activated))
+     ;; Region just deactivated
+     ((and (not now-active) ridiculous-coding--region-active-p)
+      (setq ridiculous-coding--region-active-p nil)
+      (setq ridiculous-coding--region-bounds nil)
+      (ridiculous-coding--cleanup-region-effects))
+     ;; Region still active - check if bounds changed significantly
+     (now-active
+      (let* ((start (region-beginning))
+             (end (region-end))
+             (old-bounds ridiculous-coding--region-bounds)
+             (size-change (when old-bounds
+                            (abs (- (- end start)
+                                    (- (cdr old-bounds) (car old-bounds)))))))
+        ;; Re-trigger effects if region grew by 10+ chars
+        (when (and size-change (>= size-change 10))
+          (ridiculous-coding--region-activated))
+        (setq ridiculous-coding--region-bounds (cons start end)))))))
+
+(defun ridiculous-coding--region-activated ()
+  "Handle region activation - selection started or significantly changed."
+  (when (and ridiculous-coding-particles-enabled
+             (region-active-p)
+             (use-region-p))
     (ridiculous-coding--cleanup-region-effects)
     (let ((start (region-beginning))
           (end (region-end)))
+      (setq ridiculous-coding--region-bounds (cons start end))
       ;; Sparkle cascade along selection
       (ridiculous-coding--region-sparkle start end)
       ;; Glowing border
@@ -643,10 +687,6 @@ FRAME-DELAY is seconds between frames."
       ;; Small satisfying sound
       (when (ridiculous-coding--maybe-p 0.3)
         (ridiculous-coding--play-sound 'typing)))))
-
-(defun ridiculous-coding--on-region-deactivate ()
-  "Handle region deactivation - selection ended/cleared."
-  (ridiculous-coding--cleanup-region-effects))
 
 ;;; ============================================================================
 ;;; Visual Effects: DELETION CARNAGE
@@ -833,10 +873,8 @@ screen shake, sounds, and combo counters."
                   #'ridiculous-coding--after-save nil t)
         (add-hook 'kill-buffer-hook
                   #'ridiculous-coding--kill-buffer-cleanup nil t)
-        (add-hook 'activate-mark-hook
-                  #'ridiculous-coding--on-region-activate nil t)
-        (add-hook 'deactivate-mark-hook
-                  #'ridiculous-coding--on-region-deactivate nil t))
+        (add-hook 'post-command-hook
+                  #'ridiculous-coding--check-region nil t))
     ;; Cleanup
     (remove-hook 'post-self-insert-hook
                  #'ridiculous-coding--post-self-insert t)
@@ -846,11 +884,10 @@ screen shake, sounds, and combo counters."
                  #'ridiculous-coding--after-save t)
     (remove-hook 'kill-buffer-hook
                  #'ridiculous-coding--kill-buffer-cleanup t)
-    (remove-hook 'activate-mark-hook
-                 #'ridiculous-coding--on-region-activate t)
-    (remove-hook 'deactivate-mark-hook
-                 #'ridiculous-coding--on-region-deactivate t)
+    (remove-hook 'post-command-hook
+                 #'ridiculous-coding--check-region t)
     (ridiculous-coding--cleanup-overlays)
+    (ridiculous-coding--cleanup-region-effects)
     (ridiculous-coding--reset-combo)))
 
 ;;;###autoload
