@@ -20,10 +20,10 @@
   :defer 0.1
   :config
   (global-company-mode t)
-  (setq company-idle-delay 0.05
+  (setq company-idle-delay 0.2
         company-require-match nil
-        company-minimum-prefix-length 0
-        company-frontends '(company-pseudo-tooltip-frontend company-preview-frontend)))
+        company-minimum-prefix-length 3
+        company-frontends '(company-pseudo-tooltip-frontend)))
 
 (provide 'jps-completion)
 ;;; jps-completion.el ends here

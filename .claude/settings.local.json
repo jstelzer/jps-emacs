@@ -6,7 +6,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(python -m pip:*)",
       "Bash(python -m debugpy:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
