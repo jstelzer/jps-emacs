@@ -203,6 +203,12 @@ Sounds are loaded from `ridiculous-coding-sounds-directory'/CATEGORY/."
   (mapc #'delete-overlay ridiculous-coding--overlays)
   (setq ridiculous-coding--overlays nil))
 
+(defun ridiculous-coding--kill-buffer-cleanup ()
+  "Full cleanup for buffer kill - overlays and timers."
+  (ridiculous-coding--cleanup-overlays)
+  (ridiculous-coding--cleanup-region-effects)
+  (ridiculous-coding--reset-combo))
+
 (defun ridiculous-coding--explosion-at-point ()
   "Create an explosion effect at point."
   (when ridiculous-coding-particles-enabled
@@ -398,7 +404,7 @@ Sounds are loaded from `ridiculous-coding-sounds-directory'/CATEGORY/."
   (when ridiculous-coding-flash-enabled
     (let* ((win (selected-window))
            (buf (window-buffer win))
-           (orig-bg (face-background 'default))
+           (orig-bg (or (face-background 'default) "#000000"))
            (flash-face (make-symbol "flash-face")))
       ;; Create temporary face
       (face-spec-set flash-face `((t :background ,color)))
@@ -471,24 +477,26 @@ FRAME-WIDTH/HEIGHT are frame dimensions.
 NUM-FRAMES is total frame count.
 FRAME-DELAY is seconds between frames."
   (when (and (ridiculous-coding--gui-p) sprite-path)
-    (let ((pos (point)))
+    (let ((buf (current-buffer))
+          (pos (point)))
       (dotimes (i num-frames)
         (run-at-time (* i frame-delay) nil
-                     (lambda (frame-idx p)
-                       (when (and (buffer-live-p (current-buffer))
-                                  (>= p (point-min))
-                                  (< p (point-max)))
-                         (let* ((img (ridiculous-coding--extract-frame
-                                      sprite-path frame-width frame-height frame-idx))
-                                (ov (make-overlay p (1+ p))))
-                           (when img
-                             (overlay-put ov 'priority 15000)
-                             (overlay-put ov 'ridiculous t)
-                             (overlay-put ov 'after-string (propertize " " 'display img))
-                             (push ov ridiculous-coding--overlays)
-                             (run-at-time frame-delay nil
-                                          #'ridiculous-coding--remove-overlay ov)))))
-                     i pos)))))
+                     (lambda (frame-idx p b)
+                       (when (buffer-live-p b)
+                         (with-current-buffer b
+                           (when (and (>= p (point-min))
+                                      (< p (point-max)))
+                             (let* ((img (ridiculous-coding--extract-frame
+                                          sprite-path frame-width frame-height frame-idx))
+                                    (ov (make-overlay p (1+ p))))
+                               (when img
+                                 (overlay-put ov 'priority 15000)
+                                 (overlay-put ov 'ridiculous t)
+                                 (overlay-put ov 'after-string (propertize " " 'display img))
+                                 (push ov ridiculous-coding--overlays)
+                                 (run-at-time frame-delay nil
+                                              #'ridiculous-coding--remove-overlay ov)))))))
+                     i pos buf)))))
 
 (defun ridiculous-coding--boom-animation ()
   "Play the boom explosion animation at point."
@@ -559,6 +567,178 @@ FRAME-DELAY is seconds between frames."
   (message "🔥 COMBO x%d! 🔥" ridiculous-coding--combo-count))
 
 ;;; ============================================================================
+;;; Visual Effects: REGION SELECTION
+;;; ============================================================================
+
+(defvar-local ridiculous-coding--region-overlays nil
+  "Overlays for region selection effects.")
+
+(defvar-local ridiculous-coding--region-pulse-timer nil
+  "Timer for region pulse animation.")
+
+(defconst ridiculous-coding--selection-colors
+  '("#FF6B6B" "#FFE66D" "#4ECDC4" "#FF8C42" "#A855F7" "#22D3EE" "#FF69B4")
+  "Colors for selection effects.")
+
+(defun ridiculous-coding--region-sparkle (start end)
+  "Spawn sparkles along the region from START to END."
+  (let* ((len (min (- end start) 50))  ; Cap at 50 sparkles
+         (sparkle-chars '("✦" "✧" "★" "☆" "✨" "·" "°"))
+         (step (max 1 (/ (- end start) len))))
+    (dotimes (i len)
+      (let* ((pos (+ start (* i step)))
+             (char (ridiculous-coding--random-element sparkle-chars))
+             (color (ridiculous-coding--random-element ridiculous-coding--selection-colors))
+             (delay (* i 0.02)))
+        (run-at-time delay nil
+                     (lambda (p c col)
+                       (when (and (>= p (point-min)) (< p (point-max)))
+                         (let ((ov (make-overlay p (min (1+ p) (point-max)))))
+                           (overlay-put ov 'priority 8000)
+                           (overlay-put ov 'ridiculous t)
+                           (overlay-put ov 'after-string
+                                        (propertize c 'face `(:foreground ,col :height 0.8)))
+                           (push ov ridiculous-coding--overlays)
+                           (run-at-time 0.15 nil #'ridiculous-coding--remove-overlay ov))))
+                     pos char color)))))
+
+(defun ridiculous-coding--region-glow (start end)
+  "Create a glowing border effect around region from START to END."
+  (let* ((ov (make-overlay start end))
+         (colors '("#FFFF00" "#FFDD00" "#FFBB00" "#FF9900" "#FF7700")))
+    (overlay-put ov 'priority 7000)
+    (overlay-put ov 'ridiculous t)
+    (overlay-put ov 'face `(:background "#FFFF0022" :box (:line-width 2 :color "#FFFF00")))
+    (push ov ridiculous-coding--region-overlays)
+    ;; Pulse the glow
+    (let ((pulse-idx 0))
+      (setq ridiculous-coding--region-pulse-timer
+            (run-at-time 0 0.1
+                         (lambda ()
+                           (when (and (overlayp ov) (overlay-buffer ov))
+                             (let ((color (nth (mod pulse-idx (length colors)) colors)))
+                               (overlay-put ov 'face
+                                            `(:background ,(concat color "22")
+                                              :box (:line-width 2 :color ,color)))
+                               (setq pulse-idx (1+ pulse-idx))))))))))
+
+(defun ridiculous-coding--cleanup-region-effects ()
+  "Clean up region-specific overlays and timers."
+  (when ridiculous-coding--region-pulse-timer
+    (cancel-timer ridiculous-coding--region-pulse-timer)
+    (setq ridiculous-coding--region-pulse-timer nil))
+  (mapc #'delete-overlay ridiculous-coding--region-overlays)
+  (setq ridiculous-coding--region-overlays nil))
+
+(defun ridiculous-coding--on-region-activate ()
+  "Handle region activation - selection started."
+  (when (and ridiculous-coding-particles-enabled (use-region-p))
+    (ridiculous-coding--cleanup-region-effects)
+    (let ((start (region-beginning))
+          (end (region-end)))
+      ;; Sparkle cascade along selection
+      (ridiculous-coding--region-sparkle start end)
+      ;; Glowing border
+      (ridiculous-coding--region-glow start end)
+      ;; Small satisfying sound
+      (when (ridiculous-coding--maybe-p 0.3)
+        (ridiculous-coding--play-sound 'typing)))))
+
+(defun ridiculous-coding--on-region-deactivate ()
+  "Handle region deactivation - selection ended/cleared."
+  (ridiculous-coding--cleanup-region-effects))
+
+;;; ============================================================================
+;;; Visual Effects: DELETION CARNAGE
+;;; ============================================================================
+
+(defconst ridiculous-coding--skull-chars
+  '("💀" "☠" "✖" "✗" "×" "†" "‡")
+  "Characters for deletion effects.")
+
+(defconst ridiculous-coding--fire-chars
+  '("🔥" "💥" "✦" "⚡" "★" "*" "#")
+  "Fire/destruction characters.")
+
+(defun ridiculous-coding--deletion-skull (pos)
+  "Spawn a skull at POS that fades away."
+  (when (and (>= pos (point-min)) (< pos (point-max)))
+    (let* ((skull (ridiculous-coding--random-element ridiculous-coding--skull-chars))
+           (ov (make-overlay pos (min (1+ pos) (point-max)))))
+      (overlay-put ov 'priority 9500)
+      (overlay-put ov 'ridiculous t)
+      (overlay-put ov 'after-string
+                   (propertize skull 'face '(:foreground "#FF4444" :height 1.3)))
+      (push ov ridiculous-coding--overlays)
+      ;; Fade sequence
+      (run-at-time 0.1 nil
+                   (lambda (o)
+                     (when (overlayp o)
+                       (overlay-put o 'after-string
+                                    (propertize skull 'face '(:foreground "#CC3333" :height 1.1)))))
+                   ov)
+      (run-at-time 0.2 nil #'ridiculous-coding--remove-overlay ov))))
+
+(defun ridiculous-coding--deletion-fire-trail (pos count)
+  "Spawn COUNT fire particles spreading from POS."
+  (dotimes (i count)
+    (let* ((offset (- (random 9) 4))
+           (fire-pos (+ pos offset))
+           (char (ridiculous-coding--random-element ridiculous-coding--fire-chars))
+           (color (ridiculous-coding--random-element
+                   '("#FF6600" "#FF4400" "#FF2200" "#FF0000" "#CC0000")))
+           (delay (* i 0.015)))
+      (run-at-time delay nil
+                   (lambda (p c col)
+                     (when (and (>= p (point-min)) (< p (point-max)))
+                       (let ((ov (make-overlay p (min (1+ p) (point-max)))))
+                         (overlay-put ov 'priority (+ 9000 (random 100)))
+                         (overlay-put ov 'ridiculous t)
+                         (overlay-put ov 'display (propertize c 'face `(:foreground ,col)))
+                         (push ov ridiculous-coding--overlays)
+                         (run-at-time (+ 0.05 (* (random 5) 0.02)) nil
+                                      #'ridiculous-coding--remove-overlay ov))))
+                   fire-pos char color))))
+
+(defun ridiculous-coding--vaporize-region (start end)
+  "Epic vaporization effect when deleting a region."
+  ;; Screen flash - red for destruction
+  (ridiculous-coding--flash "#FF220044")
+  ;; Big shake
+  (ridiculous-coding--big-shake)
+  ;; Fire explosion at the deletion point
+  (ridiculous-coding--deletion-fire-trail start (min 15 (- end start)))
+  ;; Skulls at start and end
+  (ridiculous-coding--deletion-skull start)
+  (when (> (- end start) 5)
+    (ridiculous-coding--deletion-skull (min (1- end) (1- (point-max)))))
+  ;; Rising spirits of the deleted text
+  (when ridiculous-coding-spirits-enabled
+    (let ((sample-chars (buffer-substring-no-properties
+                         start (min end (+ start 3)))))
+      (dotimes (i (min 3 (length sample-chars)))
+        (run-at-time (* i 0.1) nil
+                     (lambda (ch)
+                       (ridiculous-coding--spawn-spirit
+                        (propertize (char-to-string ch)
+                                    'face '(:foreground "#FF8888"))))
+                     (aref sample-chars i)))))
+  ;; Sound
+  (ridiculous-coding--play-sound 'delete))
+
+(defun ridiculous-coding--small-delete-effect ()
+  "Effect for single character deletion."
+  (let ((pos (point)))
+    ;; Small spark
+    (when (ridiculous-coding--maybe-p 0.5)
+      (ridiculous-coding--deletion-skull pos))
+    ;; Tiny fire burst
+    (ridiculous-coding--deletion-fire-trail pos (+ 2 (random 3)))
+    ;; Occasional shake
+    (when (ridiculous-coding--maybe-p 0.2)
+      (ridiculous-coding--small-shake))))
+
+;;; ============================================================================
 ;;; Event Handlers
 ;;; ============================================================================
 
@@ -599,13 +779,13 @@ FRAME-DELAY is seconds between frames."
     (when (and (> combo 15) (ridiculous-coding--maybe-p 0.1))
       (ridiculous-coding--shockwave))))
 
-(defun ridiculous-coding--on-delete ()
-  "Handle deletion event."
-  (when (ridiculous-coding--maybe-p 0.4)
-    (ridiculous-coding--explosion-at-point)
-    (ridiculous-coding--small-shake)
-    (when (ridiculous-coding--maybe-p 0.2)
-      (ridiculous-coding--play-sound 'delete))))
+(defun ridiculous-coding--on-delete (deleted-length)
+  "Handle deletion event. DELETED-LENGTH is how many chars were deleted."
+  (if (> deleted-length 3)
+      ;; Big deletion - region kill, word delete, etc.
+      (ridiculous-coding--vaporize-region (point) (+ (point) deleted-length))
+    ;; Single char deletion - still make it pop
+    (ridiculous-coding--small-delete-effect)))
 
 (defun ridiculous-coding--on-save ()
   "Handle save event - always dramatic."
@@ -624,9 +804,9 @@ FRAME-DELAY is seconds between frames."
 
 (defun ridiculous-coding--after-change (beg end len)
   "Hook for after-change-functions. BEG END LEN are change params."
-  ;; Deletion happened if len > 0 and no new text
+  ;; Deletion happened if len > 0 and no new text inserted
   (when (and (> len 0) (= beg end))
-    (ridiculous-coding--on-delete)))
+    (ridiculous-coding--on-delete len)))
 
 (defun ridiculous-coding--after-save ()
   "Hook for after-save-hook."
@@ -652,7 +832,11 @@ screen shake, sounds, and combo counters."
         (add-hook 'after-save-hook
                   #'ridiculous-coding--after-save nil t)
         (add-hook 'kill-buffer-hook
-                  #'ridiculous-coding--cleanup-overlays nil t))
+                  #'ridiculous-coding--kill-buffer-cleanup nil t)
+        (add-hook 'activate-mark-hook
+                  #'ridiculous-coding--on-region-activate nil t)
+        (add-hook 'deactivate-mark-hook
+                  #'ridiculous-coding--on-region-deactivate nil t))
     ;; Cleanup
     (remove-hook 'post-self-insert-hook
                  #'ridiculous-coding--post-self-insert t)
@@ -661,7 +845,11 @@ screen shake, sounds, and combo counters."
     (remove-hook 'after-save-hook
                  #'ridiculous-coding--after-save t)
     (remove-hook 'kill-buffer-hook
-                 #'ridiculous-coding--cleanup-overlays t)
+                 #'ridiculous-coding--kill-buffer-cleanup t)
+    (remove-hook 'activate-mark-hook
+                 #'ridiculous-coding--on-region-activate t)
+    (remove-hook 'deactivate-mark-hook
+                 #'ridiculous-coding--on-region-deactivate t)
     (ridiculous-coding--cleanup-overlays)
     (ridiculous-coding--reset-combo)))
 
@@ -774,6 +962,24 @@ screen shake, sounds, and combo counters."
   (interactive)
   (setq ridiculous-coding-images-enabled (not ridiculous-coding-images-enabled))
   (message "Image animations: %s" (if ridiculous-coding-images-enabled "ON" "OFF")))
+
+(defun ridiculous-coding-test-deletion ()
+  "Test deletion effects (small and large)."
+  (interactive)
+  (message "Small delete effect:")
+  (ridiculous-coding--small-delete-effect)
+  (run-at-time 0.5 nil
+               (lambda ()
+                 (message "Large delete effect (vaporize):")
+                 (ridiculous-coding--vaporize-region (point) (min (+ (point) 10) (point-max))))))
+
+(defun ridiculous-coding-test-region ()
+  "Test region selection effects at current point."
+  (interactive)
+  (let ((start (point))
+        (end (min (+ (point) 30) (point-max))))
+    (ridiculous-coding--region-sparkle start end)
+    (message "Region sparkle effect triggered")))
 
 (provide 'ridiculous-coding)
 ;;; ridiculous-coding.el ends here
