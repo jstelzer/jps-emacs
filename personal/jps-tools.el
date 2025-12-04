@@ -47,7 +47,8 @@
 ;; Toggle: M-x ridiculous-coding-mode
 ;; Full chaos: M-x global-ridiculous-coding-mode
 (use-package ridiculous-coding
-  :straight (:type git :host github :repo "jstelzer/ridiculous-coding.el")
+  :straight (:type git :host github :repo "jstelzer/ridiculous-coding.el"
+             :files (:defaults "sounds" "images"))
   :commands (ridiculous-coding-mode
              global-ridiculous-coding-mode
              ridiculous-coding-set-intensity))
