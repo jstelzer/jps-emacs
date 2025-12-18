@@ -60,5 +60,14 @@
   :bind ("C-c C-'" . claude-code-ide-menu)
   :config (claude-code-ide-emacs-tools-setup))
 
+(use-package justl
+  :ensure t)
+
+(use-package just-mode
+  :ensure t)
+
+(use-package json-mode
+  :ensure t)
+
 (provide 'jps-tools)
 ;;; jps-tools.el ends here
