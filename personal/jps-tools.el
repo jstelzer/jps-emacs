@@ -43,6 +43,9 @@
   :mode ("README\\.md\\'" . gfm-mode)
   :init (setq markdown-command "multimarkdown"))
 
+(use-package terraform-mode :straight t
+  :mode "\\.tf\\'")
+
 ;; Ridiculous coding effects - make coding absurdly dramatic
 ;; Toggle: M-x ridiculous-coding-mode
 ;; Full chaos: M-x global-ridiculous-coding-mode

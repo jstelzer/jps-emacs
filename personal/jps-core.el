@@ -16,6 +16,28 @@
 (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-mode))
 (add-to-list 'auto-mode-alist '("\\`Dockerfile\\'" . dockerfile-mode))
 
+;; Make UTF-8 the default everywhere.
+(set-language-environment "UTF-8")
+(prefer-coding-system 'utf-8)
+(setq locale-coding-system 'utf-8)
+(setq default-buffer-file-coding-system 'utf-8)
+(setq coding-system-for-read 'utf-8)
+(setq coding-system-for-write 'utf-8)
+
+;; Disable BOM by default
+(setq utf-translate-cjk-mode nil) ;; prevents weird encoding fallback
+(setq inhibit-eol-conversion t)
+
+;; Force new files to be UTF-8, no BOM
+(set-default-coding-systems 'utf-8)
+
+;; Keep subprocesses (shell, compile, vterm) in UTF-8
+(setq default-process-coding-system '(utf-8 . utf-8))
+
+;; Modeline display (optional)
+(setq-default buffer-file-coding-system 'utf-8-unix)
+
+
 (defun jps-delete-file-and-buffer ()
   "Delete the file visited by the current buffer, then kill the buffer."
   (interactive)
