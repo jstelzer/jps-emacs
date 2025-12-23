@@ -31,7 +31,7 @@
 (use-package deadgrep :straight t
   :bind ("C-x p G" . deadgrep))
 
-(use-package docker :straight t :bind ("C-c d" . docker))
+(use-package docker :straight t :bind ("C-c D" . docker))
 
 (use-package multiple-cursors :straight t
   :bind (("C-S-c C-S-c" . mc/edit-lines)
