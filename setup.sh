@@ -62,6 +62,11 @@ if [ -d "$SCRIPT_DIR/assets/images" ]; then
     create_symlink "$SCRIPT_DIR/assets/images" "$EMACS_DIR/images"
 fi
 
+# Symlink logos directory (for dashboard banner)
+if [ -d "$SCRIPT_DIR/logos" ]; then
+    create_symlink "$SCRIPT_DIR/logos" "$EMACS_DIR/logos"
+fi
+
 # Platform-specific setup
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "macOS detected - GUI and console modes supported"

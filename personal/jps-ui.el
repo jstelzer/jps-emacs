@@ -78,6 +78,27 @@
   :init (which-key-mode 1)
   :custom (which-key-idle-delay 0.4))
 
+;; Icons for dashboard, treemacs, etc.
+(use-package all-the-icons :straight t
+  :if (display-graphic-p)
+  :config
+  (let ((guard-file (expand-file-name "~/.emacs.d/.all-the-icons-installed")))
+    (unless (file-exists-p guard-file)
+      (all-the-icons-install-fonts t)  ; t = non-interactive
+      (write-region "" nil guard-file))))
+
+;; Dashboard startup screen
+(use-package dashboard
+  :straight t
+  :config
+  (dashboard-setup-startup-hook)
+  (setopt dashboard-set-heading-icons t
+          dashboard-set-file-icons t
+          dashboard-banner-logo-title "There is no knowledge that is not power."
+          dashboard-center-content t
+          dashboard-image-banner-max-height 300
+          dashboard-startup-banner "~/.emacs.d/logos/emacs-logo-stranger-things.png"))
+
 ;; Consult integration with project.el
 (with-eval-after-load 'consult
   (setq consult-project-root-function #'project-root))

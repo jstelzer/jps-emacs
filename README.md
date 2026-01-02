@@ -163,7 +163,10 @@ pacman -S direnv           # Arch Linux
     │   ├── stoic-operator.el        # Stoic Operator (OpenAI/Ollama backend)
     │   └── jps-operator.el          # Stoic Operator config
     ├── site-lisp/
-    │   └── simple-httpd.el          # Vendored HTTP server (for org-roam-ui)
+    │   ├── simple-httpd.el          # Vendored HTTP server (for org-roam-ui)
+    │   └── stranger-things-theme.el # Vendored theme (no doom-themes deps)
+    ├── logos/
+    │   └── emacs-logo-stranger-things.png  # Dashboard banner
     ├── setup.sh                     # Symlink/bootstrap script
     ├── .gitignore                   # Ignores caches & generated stuff
     └── README.md                    # This file
@@ -184,6 +187,7 @@ pacman -S direnv           # Arch Linux
   `C-c t`    Insert timestamp
   `C-c w`    Cleanup whitespace
   `C-c f d`  Diff buffer with file
+  `C-c S`    Load stranger-things theme (default)
   `C-c T`    Load manoj-dark theme
   `C-c L`    Load adwaita (light) theme
   `C-c F`    Toggle fullscreen
@@ -310,6 +314,12 @@ Some stable, unmaintained libraries are vendored directly into the repo for self
     -   Purpose: HTTP server for org-roam-ui graph visualization
     -   Last upstream commit: Years ago (stable, no recent changes)
     -   Rationale: Small (33KB), stable, public domain, easier to vendor than manage via package system
+
+-   **stranger-things-theme.el** (`site-lisp/stranger-things-theme.el`)
+    -   Source: Adapted from doom-stranger-things-theme
+    -   License: MIT (doom-themes)
+    -   Purpose: Dark neon 80s theme inspired by Stranger Things (default theme)
+    -   Rationale: Vendored without doom-themes dependency, trimmed to only include faces for packages used in this config
 
 ------------------------------------------------------------------------
 
@@ -460,6 +470,10 @@ Add your own debug configurations:
 
 -   **First run slow?** Totally normal --- straight.el compiles
     packages. Wait it out.\
+-   **Icons not showing?** First run auto-installs `all-the-icons` fonts
+    (creates `~/.emacs.d/.all-the-icons-installed` guard file). If icons
+    still look broken, restart Emacs or run `M-x all-the-icons-install-fonts`
+    manually.\
 -   **Packages borked?** Nuke `~/.emacs.d/straight/` and restart.\
 -   **Console mode weird?** Make sure `$TERM` is sane (`xterm-256color`
     usually works). On Arch, install `emacs-nox` if you don't want GUI deps.\

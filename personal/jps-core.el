@@ -7,6 +7,9 @@
 (require 'use-package)
 (require 'map)
 
+;; Add site-lisp to custom-theme-load-path for vendored themes
+(add-to-list 'custom-theme-load-path "~/.emacs.d/site-lisp")
+
 ;;; ============================================================================
 ;;; Configuration & File Modes
 ;;; ============================================================================
@@ -219,8 +222,9 @@
 
 (global-set-key (kbd "C-c F") #'toggle-frame-fullscreen)
 (global-set-key (kbd "C-c J") #'jps-json-flatten)
-(global-set-key (kbd "C-c L") (lambda () (interactive) (load-theme 'adwaita)))
-(global-set-key (kbd "C-c T") (lambda () (interactive) (load-theme 'manoj-dark)))
+(global-set-key (kbd "C-c L") (lambda () (interactive) (load-theme 'adwaita t)))
+(global-set-key (kbd "C-c T") (lambda () (interactive) (load-theme 'manoj-dark t)))
+(global-set-key (kbd "C-c S") (lambda () (interactive) (load-theme 'stranger-things t)))
 (global-set-key (kbd "C-c W") #'whitespace-mode)
 (global-set-key (kbd "C-c X") #'jps-toggle-transparency)
 (global-set-key (kbd "C-c A") #'align-regexp)
@@ -243,7 +247,7 @@
 (add-to-list 'auto-mode-alist '("\\.md\\'" . org-mode))
 
 ;; Default theme and UI
-(load-theme 'manoj-dark t)
+(load-theme 'stranger-things t)
 (electric-pair-mode t)
 (delete-selection-mode 1)
 (setq mouse-yank-at-point t)
