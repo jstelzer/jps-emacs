@@ -278,7 +278,7 @@
 (save-place-mode 1) ;; reopen files at last cursor pos
 
 ;; Final transparency and font setup
-(jps-toggle-transparency)
+;(jps-toggle-transparency)
 (set-face-attribute 'default nil :family "MesloLGS NF" :height 160)
 
 (provide 'jps-core)
