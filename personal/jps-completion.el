@@ -15,6 +15,10 @@
 
 (use-package yasnippet :straight t :config (yas-global-mode))
 
+;; Only enable corfu-terminal in TTY
+(when (not (display-graphic-p))
+  (corfu-terminal-mode +1))
+
 (use-package corfu
   :straight t
   :init
