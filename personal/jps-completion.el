@@ -15,9 +15,11 @@
 
 (use-package yasnippet :straight t :config (yas-global-mode))
 
-;; Only enable corfu-terminal in TTY
-(when (not (display-graphic-p))
-  (corfu-terminal-mode +1))
+;; Always use corfu-terminal — child frames misbehave on many Linux WMs
+(use-package corfu-terminal
+  :straight t
+  :after corfu
+  :config)
 
 (use-package corfu
   :straight t
