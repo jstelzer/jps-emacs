@@ -42,6 +42,8 @@
 (require 'jps-lang-go)     ; Go support (go-mode, gopls, staticcheck, structlayout)
 (require 'jps-lang-rust)   ; Rust support (rust-mode, cargo, rust-analyzer)
 (require 'jps-lang-python) ; Python support (uv, basedpyright, ruff)
+(when (eq system-type 'darwin)
+  (require 'jps-swift))    ; Swift support (swift-mode, sourcekit-lsp, swift-format)
 
 ;;; ============================================================================
 ;;; Debugging Layer
