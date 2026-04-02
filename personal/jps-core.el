@@ -146,7 +146,7 @@
   "Flatten region B..E into a single-line, valid JSON."
   (interactive "r")
   (shell-command-on-region
-   b e "python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(\",\", \":\")))'"
+   b e "python3 -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(\",\", \":\")))'"
    (current-buffer) t))
 
 (defun jps-generate-timestamp ()
