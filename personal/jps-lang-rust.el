@@ -78,26 +78,37 @@ Useful for debugging complex macros like Serde or async traits."
 ;;; LSP Configuration (rust-analyzer)
 ;;; ============================================================================
 
+(defun jps-rust--parse-edition ()
+  "Parse the `edition` field from the project's top-level Cargo.toml.
+Returns the edition string (e.g. \"2021\", \"2024\") or nil if not found."
+  (when-let* ((root (jps--project-root))
+              (cargo-toml (expand-file-name "Cargo.toml" root)))
+    (when (file-exists-p cargo-toml)
+      (with-temp-buffer
+        (insert-file-contents cargo-toml)
+        (when (re-search-forward "^edition\\s*=\\s*\"\\([0-9]+\\)\"" nil t)
+          (match-string 1))))))
+
+(defun jps-rust--workspace-config ()
+  "Build rust-analyzer workspace configuration, including edition from Cargo.toml."
+  (let* ((edition (jps-rust--parse-edition))
+         (cargo-config `((allFeatures . t)
+                         (loadOutDirsFromCheck . t)
+                         ,@(when edition `((edition . ,edition))))))
+    `(:rust-analyzer
+      (:cargo ,cargo-config
+       :check (:command "clippy" :extraArgs ["--tests"])
+       :diagnostics (:disabled ["unresolved-proc-macro"])
+       :inlayHints (:bindingModeHints t
+                     :closingBraceHints t
+                     :closureReturnTypeHints "always"
+                     :lifetimeElisionHints "always"
+                     :parameterHints t
+                     :typeHints t)))))
+
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
-  
-  (setq-default eglot-workspace-configuration
-                (append
-                 '((rust-analyzer
-                    . ((cargo . ((allFeatures . t)
-                                 (loadOutDirsFromCheck . t)))
-                       ;;  Run Clippy, not just 'check'
-                       (check . ((command . "clippy")
-                                 (extraArgs . ["--tests"]))) 
-                       (diagnostics . ((disabled . ["unresolved-proc-macro"])))
-                       ;; Inlay Hints (The "Reading Glasses")
-                       (inlayHints . ((bindingModeHints . t)
-                                      (closingBraceHints . t)
-                                      (closureReturnTypeHints . "always")
-                                      (lifetimeElisionHints . "always")
-                                      (parameterHints . t)
-                                      (typeHints . t))))))
-                 eglot-workspace-configuration)))
+  (setq-default eglot-workspace-configuration #'jps-rust--workspace-config))
 
 ;; Organize imports on save (mirrors Go behavior)
 (add-hook 'rust-mode-hook

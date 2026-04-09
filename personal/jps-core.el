@@ -280,6 +280,19 @@
 ;; Final transparency and font setup
 ;(jps-toggle-transparency)
 (set-face-attribute 'default nil :family "MesloLGS NF" :height 160)
+(set-fontset-font
+ t
+ 'symbol
+ (cond
+  ((eq system-type 'windows-nt)
+   (cond
+    ((member "Segoe UI Symbol" (font-family-list)) "Segoe UI Symbol")))
+  ((eq system-type 'darwin)
+   (cond
+    ((member "Apple Symbols" (font-family-list)) "Apple Symbols")))
+  ((eq system-type 'gnu/linux)
+   (cond
+    ((member "Symbola" (font-family-list)) "Symbola")))))
 
 (provide 'jps-core)
 ;;; jps-core.el ends here
