@@ -155,24 +155,27 @@
   (insert (format-time-string "%a %b %d %H:%M:%S %Y")))
 
 (defun jps-toggle-transparency ()
-  "Toggle frame transparency between opaque and semi-transparent on any build."
+  "Toggle frame transparency between opaque and semi-transparent on any build.
+Sets both the current frame and `default-frame-alist' so new frames inherit."
   (interactive)
   (let* ((frame (selected-frame))
          (ab (frame-parameter frame 'alpha-background))
          (have-ab (numberp ab))
          (opaque (if have-ab 1.0 100))
-         (trans  (if have-ab 0.75 75)))
+         (trans  (if have-ab 0.95 90)))
     (if have-ab
-        (set-frame-parameter frame 'alpha-background
-                             (if (< ab 1.0) opaque trans))
+        (let ((new-val (if (< ab 1.0) opaque trans)))
+          (set-frame-parameter frame 'alpha-background new-val)
+          (setf (alist-get 'alpha-background default-frame-alist) new-val))
       (let* ((cur (frame-parameter frame 'alpha))
              (cur-active (cond ((numberp cur) cur)
                                ((consp cur) (car cur))
-                               (t 100))))
-        (set-frame-parameter frame 'alpha
-                             (if (< cur-active 100)
-                                 (cons opaque opaque)
-                               (cons trans trans)))))))
+                               (t 100)))
+             (new-val (if (< cur-active 100)
+                          (cons opaque opaque)
+                        (cons trans trans))))
+        (set-frame-parameter frame 'alpha new-val)
+        (setf (alist-get 'alpha default-frame-alist) new-val)))))
 
 (defun jps-configure-platform ()
   "Configure platform-specific options."

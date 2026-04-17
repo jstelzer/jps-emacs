@@ -31,7 +31,8 @@
   :init
   (setq rust-mode-treesitter-derive nil) ;; Use tree-sitter if available
   :config
-  (setq rust-format-on-save t))
+  ;; Formatting on save is centralized in jps-lsp.el via Eglot.
+  (setq rust-format-on-save nil))
 
 (use-package cargo
   :straight t
@@ -108,7 +109,28 @@ Returns the edition string (e.g. \"2021\", \"2024\") or nil if not found."
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
+<<<<<<< Updated upstream
   (setq-default eglot-workspace-configuration #'jps-rust--workspace-config))
+=======
+  
+  (setq-default eglot-workspace-configuration
+                (append
+                 '((rust-analyzer
+                    . ((cargo . ((allFeatures . t)
+                                 (loadOutDirsFromCheck . t)))
+                       ;;  Run Clippy, not just 'check'
+                       (check . ((command . "clippy")
+                                 (extraArgs . ["--tests"])))
+                       (diagnostics . ((disabled . ["unresolved-proc-macro"])))
+                       ;; Inlay Hints (The "Reading Glasses")
+                       (inlayHints . ((bindingModeHints . t)
+                                      (closingBraceHints . t)
+                                      (closureReturnTypeHints . "always")
+                                      (lifetimeElisionHints . "always")
+                                      (parameterHints . t)
+                                      (typeHints . t))))))
+                 eglot-workspace-configuration)))
+>>>>>>> Stashed changes
 
 ;; Organize imports on save (mirrors Go behavior)
 (add-hook 'rust-mode-hook

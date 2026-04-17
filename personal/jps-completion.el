@@ -15,12 +15,6 @@
 
 (use-package yasnippet :straight t :config (yas-global-mode))
 
-;; Always use corfu-terminal — child frames misbehave on many Linux WMs
-(use-package corfu-terminal
-  :straight t
-  :after corfu
-  :config)
-
 (use-package corfu
   :straight t
   :init
@@ -38,6 +32,7 @@
   :init
   (add-to-list 'completion-at-point-functions #'cape-file)
   (add-to-list 'completion-at-point-functions #'cape-dabbrev))
+
 
 (provide 'jps-completion)
 ;;; jps-completion.el ends here

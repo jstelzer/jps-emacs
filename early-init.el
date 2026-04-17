@@ -21,6 +21,7 @@
         '((vertical-scroll-bars . nil)
           (horizontal-scroll-bars . nil)
           (menu-bar-lines . 0)
-          (tool-bar-lines . 0))))
+          (tool-bar-lines . 0)
+          (alpha-background . 0.95))))
 
 ;;; early-init.el ends here
