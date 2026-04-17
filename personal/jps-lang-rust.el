@@ -109,10 +109,6 @@ Returns the edition string (e.g. \"2021\", \"2024\") or nil if not found."
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
-<<<<<<< Updated upstream
-  (setq-default eglot-workspace-configuration #'jps-rust--workspace-config))
-=======
-  
   (setq-default eglot-workspace-configuration
                 (append
                  '((rust-analyzer
@@ -130,7 +126,6 @@ Returns the edition string (e.g. \"2021\", \"2024\") or nil if not found."
                                       (parameterHints . t)
                                       (typeHints . t))))))
                  eglot-workspace-configuration)))
->>>>>>> Stashed changes
 
 ;; Organize imports on save (mirrors Go behavior)
 (add-hook 'rust-mode-hook
