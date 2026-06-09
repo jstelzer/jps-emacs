@@ -60,6 +60,7 @@
 (require 'jps-notes)       ; Org-roam knowledge management
 (require 'jps-ai)          ; ChatGPT shell integration
 (require 'jps-operator)    ; Stoic Operator/personal-cog work
+(require 'jps-hcl)         ; HCL, atlas/terraform support
 ;;; ============================================================================
 ;;; Configuration Complete
 ;;; ============================================================================

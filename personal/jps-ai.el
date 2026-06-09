@@ -6,6 +6,13 @@
 
 (require 'use-package)
 
+;; Ollama/hooks
+
+(straight-use-package 'gptel)
+(gptel-make-ollama "Ollama"             ;Any name of your choosing
+  :host "localhost:11434"               ;Where it's running
+  :stream t                             ;Stream responses
+  :models '(gemma4:31b))          ;List of models
 ;;; ============================================================================
 ;;; ChatGPT (chatgpt-shell) + agent-shell integration
 ;;; ============================================================================
@@ -83,5 +90,9 @@
 ;; (setq chatgpt-shell-openai-base-url nil
 ;;       chatgpt-shell-model "gpt-4o-mini")
 
+(use-package eca
+  :vc (:url "https://github.com/editor-code-assistant/eca-emacs" :rev :newest))
+
 (provide 'jps-ai)
 ;;; jps-ai.el ends here
+
