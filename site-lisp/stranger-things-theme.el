@@ -367,15 +367,15 @@ Can be an integer to specify exact padding."
    ;; Eglot
    `(eglot-highlight-symbol-face ((,class (:background ,base3 :weight bold))))
 
-   ;; Vterm
-   `(vterm-color-black ((,class (:foreground ,base0 :background ,base4))))
-   `(vterm-color-red ((,class (:foreground ,red :background ,red))))
-   `(vterm-color-green ((,class (:foreground ,green :background ,green))))
-   `(vterm-color-yellow ((,class (:foreground ,yellow :background ,yellow))))
-   `(vterm-color-blue ((,class (:foreground ,blue :background ,blue))))
-   `(vterm-color-magenta ((,class (:foreground ,magenta :background ,magenta))))
-   `(vterm-color-cyan ((,class (:foreground ,cyan :background ,cyan))))
-   `(vterm-color-white ((,class (:foreground ,fg :background ,fg))))
+   ;; Terminal ANSI colors (ghostel uses the standard ansi-color faces)
+   `(ansi-color-black ((,class (:foreground ,base0 :background ,base4))))
+   `(ansi-color-red ((,class (:foreground ,red :background ,red))))
+   `(ansi-color-green ((,class (:foreground ,green :background ,green))))
+   `(ansi-color-yellow ((,class (:foreground ,yellow :background ,yellow))))
+   `(ansi-color-blue ((,class (:foreground ,blue :background ,blue))))
+   `(ansi-color-magenta ((,class (:foreground ,magenta :background ,magenta))))
+   `(ansi-color-cyan ((,class (:foreground ,cyan :background ,cyan))))
+   `(ansi-color-white ((,class (:foreground ,fg :background ,fg))))
 
    ;; Eshell
    `(eshell-prompt ((,class (:foreground ,red :weight bold))))

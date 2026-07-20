@@ -52,7 +52,7 @@
         '((project-find-file "Find file")
           (project-find-regexp "Grep")
           (magit-project-status "Magit")
-          (jps-project-vterm "Shell")
+          (jps-project-ghostel "Shell")
           (jps-project-test "Test")
           (jps-project-build "Build")
           (jps-project-deploy "Deploy")

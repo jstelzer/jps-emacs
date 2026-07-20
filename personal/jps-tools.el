@@ -18,8 +18,9 @@
 ;;; ============================================================================
 
 ;; Agent-shell is loaded via jps-agent-shell.el
-;; Keep vterm as optional fallback for non-LLM terminal sessions
-(use-package vterm :straight t :defer t)
+;; Keep ghostel as optional fallback for non-LLM terminal sessions
+;; (libghostty-vt based; native module auto-downloads on first use)
+(use-package ghostel :straight t :defer t)
 
 (use-package magit :straight t
   :bind (("C-x g" . magit-status)))
@@ -56,12 +57,12 @@
              global-ridiculous-coding-mode
              ridiculous-coding-set-intensity))
 
-(setq claude-code-vterm-buffer-multiline-output nil)
-
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
   :bind ("C-c C-'" . claude-code-ide-menu)
-  :config (claude-code-ide-emacs-tools-setup))
+  :config
+  (setq claude-code-ide-terminal-backend 'ghostel)
+  (claude-code-ide-emacs-tools-setup))
 
 (use-package justl
   :ensure t)
@@ -71,6 +72,24 @@
 
 (use-package json-mode
   :ensure t)
+;; Tilt mode.
 
+;; (require 'python-mode)
+
+;; (define-derived-mode tiltfile-mode
+;;   python-mode "tiltfile"
+;;   "Major mode for Tilt Dev."
+;;   (setq-local case-fold-search nil))
+
+;; (add-to-list 'auto-mode-alist '("Tiltfile$" . tiltfile-mode))
+
+;; (with-eval-after-load 'lsp-mode
+;;   (add-to-list 'lsp-language-id-configuration
+;;     '(tiltfile-mode . "tiltfile"))
+
+;;   (lsp-register-client
+;;     (make-lsp-client :new-connection (lsp-stdio-connection `("tilt" "lsp" "start"))
+;;                      :activation-fn (lsp-activate-on "tiltfile")
+;;                      :server-id 'tilt-lsp)))
 (provide 'jps-tools)
 ;;; jps-tools.el ends here

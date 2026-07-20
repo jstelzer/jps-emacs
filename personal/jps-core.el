@@ -34,7 +34,7 @@
 ;; Force new files to be UTF-8, no BOM
 (set-default-coding-systems 'utf-8)
 
-;; Keep subprocesses (shell, compile, vterm) in UTF-8
+;; Keep subprocesses (shell, compile, ghostel) in UTF-8
 (setq default-process-coding-system '(utf-8 . utf-8))
 
 ;; Modeline display (optional)
