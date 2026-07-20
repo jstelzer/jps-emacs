@@ -90,8 +90,6 @@
 ;; (setq chatgpt-shell-openai-base-url nil
 ;;       chatgpt-shell-model "gpt-4o-mini")
 
-(use-package eca
-  :vc (:url "https://github.com/editor-code-assistant/eca-emacs" :rev :newest))
 
 (provide 'jps-ai)
 ;;; jps-ai.el ends here
