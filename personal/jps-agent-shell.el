@@ -1,105 +1,57 @@
-;;; jps-agent-shell.el --- Agent-shell integration for LLM-powered terminal -*- lexical-binding: t -*-
+;;; jps-agent-shell.el --- ACP agents in Emacs -*- lexical-binding: t -*-
 ;;; Commentary:
-;; Integration for agent-shell (xenodium/agent-shell)
-;; Provides LLM-powered shell with multiple backend support:
-;; - Claude Code (Anthropic)
-;; - Gemini CLI (Google)
-;; - OpenAI Codex
-;; - Goose CLI
-;; - Cursor Agent
-;; - Qwen Code
-;;
-;; This replaces vterm for AI-assisted development workflows.
+;; Use agent-shell defaults, with Claude as the preferred agent.
+;; Authentication defaults to CLI login; ACP file read/write support is enabled
+;; by default.  Region, buffer, and file commands stage context before sending.
 ;;; Code:
 
 (require 'use-package)
 
-;;; ============================================================================
-;;; Agent Shell Configuration
-;;; ============================================================================
-
-;; Shell-maker - required dependency for agent-shell
-;; Pinned to v0.84.1+ (required for agent-shell compatibility)
+;; Keep dependencies on their upstream branches alongside agent-shell.
 (use-package shell-maker
-  :straight (shell-maker :type git :host github :repo "xenodium/shell-maker"
-                         :ref "v0.84.1")
-  :demand t)
+  :straight (:type git :host github :repo "xenodium/shell-maker")
+  :defer t)
 
-;; ACP (Anthropic Claude Protocol) - required dependency for agent-shell
 (use-package acp
-  :straight (acp :type git :host github :repo "xenodium/acp.el")
-  :demand t)
+  :straight (:type git :host github :repo "xenodium/acp.el")
+  :defer t)
 
 (use-package agent-shell
-  :straight (agent-shell :type git :host github :repo "xenodium/agent-shell")
+  :straight (:type git :host github :repo "xenodium/agent-shell")
   :demand t
-  :after acp
   :config
-  ;; Configure Claude Code (Anthropic) backend
-  ;; Uses login-based authentication by default
-  ;; For API key auth, uncomment and set:
-  ;; (setq agent-shell-anthropic-authentication
-  ;;   (agent-shell-anthropic-make-authentication :api-key (getenv "ANTHROPIC_API_KEY")))
-
-  ;; Configure environment variables (inherit system env)
-  (setq agent-shell-anthropic-claude-environment
-        (agent-shell-make-environment-variables
-         :inherit-env t))
-
-  ;; Enable file capabilities for inserting files into agent conversations
-  (setq agent-shell-text-file-capabilities t)
-
-  ;; Buffer display configuration (same window by default)
-  (setq agent-shell-display-action '(display-buffer-same-window))
-
-  ;; Set Claude Code as preferred agent
-  (setq agent-shell-preferred-agent-config
-        (agent-shell-anthropic-make-claude-code-config)))
-
-;;; ============================================================================
-;;; Custom Commands & Keybindings
-;;; ============================================================================
-
-(defun jps-agent-shell ()
-  "Start or switch to agent-shell buffer."
-  (interactive)
-  (agent-shell))
+  (setq agent-shell-preferred-agent-config 'claude-code))
 
 (defun jps-agent-shell-new ()
-  "Start a new agent-shell session (with prefix arg behavior)."
+  "Start a new agent-shell session."
   (interactive)
-  (let ((current-prefix-arg '(4)))
-    (call-interactively #'agent-shell)))
-
-(defun jps-agent-shell-send-region (beg end)
-  "Send region BEG..END to agent-shell."
-  (interactive "r")
-  (let ((text (buffer-substring-no-properties beg end)))
-    (with-current-buffer (agent-shell)
-      (goto-char (point-max))
-      (insert text)
-      (comint-send-input))))
+  (agent-shell '(4)))
 
 (defun jps-agent-shell-send-buffer ()
-  "Send entire buffer to agent-shell."
+  "Stage the accessible buffer text in agent-shell for review before sending."
   (interactive)
-  (jps-agent-shell-send-region (point-min) (point-max)))
+  (save-mark-and-excursion
+    (goto-char (point-min))
+    (push-mark (point-max) t t)
+    (let ((transient-mark-mode t))
+      (agent-shell-send-region))))
 
-;; Define C-c a as a prefix key for agent-shell commands
 (define-prefix-command 'jps-agent-shell-map)
 (global-set-key (kbd "C-c a") 'jps-agent-shell-map)
 
-;; Global keybindings for agent-shell
-(define-key jps-agent-shell-map (kbd "s") #'jps-agent-shell)
+(define-key jps-agent-shell-map (kbd "s") #'agent-shell)
 (define-key jps-agent-shell-map (kbd "n") #'jps-agent-shell-new)
-(define-key jps-agent-shell-map (kbd "r") #'jps-agent-shell-send-region)
+(define-key jps-agent-shell-map (kbd "r") #'agent-shell-send-region)
 (define-key jps-agent-shell-map (kbd "b") #'jps-agent-shell-send-buffer)
-(define-key jps-agent-shell-map (kbd "f") #'agent-shell-insert-file)
-(define-key jps-agent-shell-map (kbd "c") #'agent-shell-insert-shell-command-output)
+(define-key jps-agent-shell-map (kbd "f") #'agent-shell-send-file)
 
-;; Specific backend launchers
 (define-key jps-agent-shell-map (kbd "C") #'agent-shell-anthropic-start-claude-code)
+(define-key jps-agent-shell-map (kbd "O") #'agent-shell-openai-start-codex)
 (define-key jps-agent-shell-map (kbd "G") #'agent-shell-google-start-gemini)
+
+;; This command requires an agent-shell buffer.
+(define-key agent-shell-mode-map (kbd "C-c a c")
+            #'agent-shell-insert-shell-command-output)
 
 (provide 'jps-agent-shell)
 ;;; jps-agent-shell.el ends here

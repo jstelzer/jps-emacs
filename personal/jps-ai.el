@@ -90,7 +90,6 @@
 ;; (setq chatgpt-shell-openai-base-url nil
 ;;       chatgpt-shell-model "gpt-4o-mini")
 
-
 (provide 'jps-ai)
 ;;; jps-ai.el ends here
 

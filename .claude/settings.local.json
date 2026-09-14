@@ -9,7 +9,17 @@
       "Bash(cp:*)",
       "Bash(grep:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__ide__executeCode",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Remove eca; it never caught on *)",
+      "Bash(git -C /Users/mental/emacs-config branch -a -vv)",
+      "Bash(git -C /Users/mental/emacs-config status --short)",
+      "Read(//Users/mental/projects/llc.neverlight/pam/**)",
+      "Bash(gh pr *)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
