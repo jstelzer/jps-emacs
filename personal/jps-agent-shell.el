@@ -1,8 +1,8 @@
 ;;; jps-agent-shell.el --- ACP agents in Emacs -*- lexical-binding: t -*-
 ;;; Commentary:
-;; Use agent-shell defaults, with Claude as the preferred agent.
-;; Authentication defaults to CLI login; ACP file read/write support is enabled
-;; by default.  Region, buffer, and file commands stage context before sending.
+;; Keep Claude as the preferred agent and use the locally installed cola-io
+;; Codex ACP adapter for its built-in acp_fs tools.  Authentication uses CLI
+;; login.  Region, buffer, and file commands stage context before sending.
 ;;; Code:
 
 (require 'use-package)
@@ -20,7 +20,20 @@
   :straight (:type git :host github :repo "xenodium/agent-shell")
   :demand t
   :config
-  (setq agent-shell-preferred-agent-config 'claude-code))
+  (setq agent-shell-preferred-agent-config 'claude-code
+        agent-shell-text-file-capabilities t)
+  (require 'agent-shell-openai)
+  (let ((command (list (expand-file-name "~/bin/codex-acp"))))
+    (if (boundp 'agent-shell-openai-codex-acp-command)
+        (setq agent-shell-openai-codex-acp-command command
+              agent-shell-openai-codex-command nil)
+      (setq agent-shell-openai-codex-command command)))
+  (setq agent-shell-openai-codex-environment
+        (cons "CODEX_LOG_STDERR=0"
+              (seq-remove
+               (lambda (entry)
+                 (string-prefix-p "CODEX_LOG_STDERR=" entry))
+               agent-shell-openai-codex-environment))))
 
 (defun jps-agent-shell-new ()
   "Start a new agent-shell session."

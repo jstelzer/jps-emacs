@@ -61,6 +61,64 @@ once.
 
 The config auto-detects what's installed, but here's the full list of external tools it can use. Install what you need for your languages:
 
+### AI Agents (agent-shell)
+
+For the configured Claude, Codex, and Gemini integrations, make these four
+executables available to Emacs. Installation methods and binary builds can differ
+between macOS and Linux; the executable names and PATH requirements do not.
+Installing the Emacs packages does **not** install these external programs.
+
+| Executable | Purpose | Where to get it |
+| ---------- | ------- | --------------- |
+| `claude` | Claude Code CLI, including subscription login and the separate Claude Code IDE integration | [Claude Code](https://code.claude.com/docs/en/setup) |
+| `claude-agent-acp` | Claude ACP adapter used by agent-shell | [Claude Agent ACP](https://github.com/agentclientprotocol/claude-agent-acp), or `npm install -g @agentclientprotocol/claude-agent-acp` |
+| `codex-acp` | Codex ACP adapter with the built-in `acp_fs` filesystem bridge | Build/install [cola-io/codex-acp](https://github.com/cola-io/codex-acp) for your OS and CPU |
+| `gemini` | Gemini CLI, with native ACP support via `--experimental-acp` | [Gemini CLI](https://github.com/google-gemini/gemini-cli), or `npm install -g @google/gemini-cli` |
+
+**The Codex adapter matters:** this configuration expects the **cola-io** adapter,
+not just any executable named `codex-acp`. Do not substitute the similarly named
+`@agentclientprotocol/codex-acp` package and assume it supplies the same bridge.
+The four filesystem tools are `read_text_file`, `write_text_file`,
+`edit_text_file`, and `multi_edit_text_file`. These are MCP tools supplied by the
+adapter, **not four additional executables to install on PATH**.
+
+Put the executables (or symlinks to them) in a directory on PATH, such as
+`~/bin`, and include that directory in your shell startup configuration:
+
+```bash
+export PATH="$HOME/bin:$PATH"
+
+for tool in claude claude-agent-acp codex-acp gemini; do
+    command -v "$tool" || printf "Missing executable: %s\n" "$tool"
+done
+```
+
+**Current Codex path exception:** `personal/jps-agent-shell.el` deliberately pins
+the bridge-capable adapter to `~/bin/codex-acp`, avoiding another adapter earlier
+on PATH. Install or symlink the cola-io binary there on either OS. The other
+commands are resolved through Emacs `exec-path`.
+
+A working terminal PATH does not guarantee a GUI Emacs process sees the same
+environment. This config uses `exec-path-from-shell`; verify the result inside
+Emacs with `M-:`:
+
+```elisp
+(mapcar (lambda (tool) (cons tool (executable-find tool)))
+        (quote ("claude" "claude-agent-acp" "codex-acp" "gemini")))
+```
+
+Each result should contain an absolute path rather than `nil`. On older
+agent-shell installations, Claude may still be configured to launch the former
+`claude-code-acp` name; update/rebuild agent-shell rather than assuming the new
+executable name is already in use.
+
+Complete the relevant login flow before starting an agent. Then use `C-c a C`
+for Claude (the preferred agent), `C-c a O` for Codex, or `C-c a G` for Gemini.
+After changing executables or configuration, reload `jps-agent-shell.el` and
+start a **fresh session**. The bootstrap enables ACP file capabilities and sets
+`CODEX_LOG_STDERR=0` to keep this Codex adapter’s console logs off the JSON-RPC
+stream; existing sessions do not acquire newly configured tools retroactively.
+
 ### Go Development
 
 ```bash
