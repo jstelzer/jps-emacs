@@ -1,6 +1,16 @@
 ;;; init.el --- Refined config -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
+
+;; Bundled libgccjit can misidentify newer Darwin releases as macOS 17/18,
+;; which clang rejects.  Use a supported deployment target for native code
+;; on macOS 26+ (Darwin 25+), before straight.el or subr trampolines compile.
+;; Keep this here because setup.sh currently installs only init.el.
+(when (and (eq system-type 'darwin)
+           (version<= "25" operating-system-release))
+  (setq native-comp-compiler-options '("-mmacosx-version-min=14.0")
+        native-comp-driver-options '("-mmacosx-version-min=14.0")))
+
 ;; Bootstrap straight.el for package management
 ;; This is the ONLY package manager we use - no package.el
 ;; Emacs <29 compat: some packages (e.g. project.el from MELPA) call this.
