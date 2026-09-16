@@ -16,6 +16,10 @@
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
+;; Activate Org before other packages load any of its libraries.
+;; In particular, shell-maker's markdown-overlays requires org-faces.
+(straight-use-package 'org)
+
 ;; Install and configure use-package with straight.el
 (straight-use-package 'use-package)
 (setq straight-use-package-by-default t)
