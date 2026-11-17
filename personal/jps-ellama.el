@@ -122,6 +122,16 @@ tool calls still ask for confirmation."
    :embedding-model jps-ellama-embedding-model
    :default-chat-non-standard-params `(("num_ctx" . ,num-ctx))))
 
+(defun jps-ellama-provider (&optional slot model)
+  "Return an Ollama provider for SLOT (`:chat' or `:coding') of the profile.
+SLOT defaults to `:chat'.  MODEL, when non-nil, replaces the profile's
+model but keeps its context size.  Other modules (Stoic Operator) use this
+so every local model goes through one place."
+  (require 'llm-ollama)
+  (let ((spec (jps-ellama--spec)))
+    (jps-ellama--provider (or model (plist-get spec (or slot :chat)))
+                          (plist-get spec :num-ctx))))
+
 (defun jps-ellama-apply-profile ()
   "Point ellama's providers at the active profile's models."
   (interactive)

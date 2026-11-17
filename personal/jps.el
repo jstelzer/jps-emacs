@@ -13,7 +13,9 @@
 ;; - jps-debug: Debug Adapter Protocol (DAP)
 ;; - jps-rest: REST/API development tools
 ;; - jps-project: Smart project management
-;; - jps-ai: AI/LLM integration
+;; - jps-agent-shell: Cloud agents (Claude, Codex, Gemini) over ACP
+;; - jps-ellama: Local LLMs (ellama + Ollama profiles)
+;; - stoic-operator: Writing prompts on the local chat model
 ;;
 ;; To disable a module, simply comment out its (require ...) line below.
 ;;; Code:
@@ -58,9 +60,8 @@
 (require 'jps-rest)        ; REST/API development (restclient, jq, graphql)
 (require 'jps-project)     ; Smart project commands (test/build/deploy)
 (require 'jps-notes)       ; Org-roam knowledge management
-(require 'jps-ai)          ; ChatGPT shell integration
 (require 'jps-ellama)      ; Local LLMs: ellama + Ollama, per-host model profile
-(require 'jps-operator)    ; Stoic Operator/personal-cog work
+(require 'stoic-operator)  ; Stoic Operator writing prompts (local models only)
 (require 'jps-hcl)         ; HCL, atlas/terraform support
 ;;; ============================================================================
 ;;; Configuration Complete

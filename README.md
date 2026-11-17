@@ -32,11 +32,11 @@ wired in\
     makes the minibuffer the center of the universe\
 -   🎨 **Platform smarts** -- transparency + trackpad scroll on macOS,
     works in X11/Wayland, runs fine over SSH\
--   🤖 **Claude Code Menu** -- drop into AI-assisted coding from inside
-    Emacs\
+-   🤖 **AI agents** -- Claude, Codex and Gemini over ACP via agent-shell
+    (`C-c a`), plus the Claude Code IDE menu (`C-c C-'`)\
 -   🦙 **Local LLMs** -- ellama + Ollama with per-machine model profiles
     (`C-c m`); see [Local LLMs](#local-llms-ellama--ollama)\
--   🧘 **Stoic Operator** -- interchangeable OpenAI/Ollama integration for writing, philosophy, and non-code AI work\
+-   🧘 **Stoic Operator** -- writing and philosophy prompts that run only on local models (`C-c o`)\
 -   🌐 **REST client** -- built-in HTTP testing with token extraction and jq filtering\
 -   🗑 **Auto-save cleanup** -- saves buffers, prunes old autosaves (not
     all of them, only crusty ones)
@@ -219,10 +219,9 @@ pacman -S direnv           # Arch Linux
     │   ├── jps-debug.el             # DAP debugging (Go/Rust/Python)
     │   ├── jps-rest.el              # REST client & API tools
     │   ├── jps-project.el           # Smart project commands
-    │   ├── jps-ai.el                # ChatGPT integration
+    │   ├── jps-agent-shell.el       # Cloud agents over ACP (Claude, Codex, Gemini)
     │   ├── jps-ellama.el            # Local LLMs (ellama + Ollama profiles)
-    │   ├── stoic-operator.el        # Stoic Operator (OpenAI/Ollama backend)
-    │   └── jps-operator.el          # Stoic Operator config
+    │   └── stoic-operator.el        # Stoic Operator prompts (local models only)
     ├── site-lisp/
     │   ├── simple-httpd.el          # Vendored HTTP server (for org-roam-ui)
     │   └── stranger-things-theme.el # Vendored theme (no doom-themes deps)
@@ -262,15 +261,19 @@ pacman -S direnv           # Arch Linux
   `C-c C-'`  Claude Code IDE menu
   `C-c D`    Docker dashboard
 
-### ChatGPT
+### AI layout
 
-how to use
-    Key                 Action
-   -----               ------------------------------------------------------------------------
-   `C-c g v`           → splits the frame: vterm (left) + chatgpt-shell (right) in your project.
-   `C-c g c`           → open a chat buffer anywhere.
-   `C-c g r / C-c g b` → send region / whole buffer.
-   `C-c g s`           → send region but keep your cursor where you were.
+Each way of talking to a model has one job:
+
+| Module | Job | Keys |
+| ------ | --- | ---- |
+| `jps-agent-shell.el` | Cloud agents (Claude, Codex, Gemini) over ACP | `C-c a` |
+| `jps-tools.el` (claude-code-ide) | Claude Code in a terminal with Emacs MCP tools | `C-c C-'` |
+| `jps-ellama.el` | Local models via Ollama; owns the per-machine model profiles | `C-c m` |
+| `stoic-operator.el` | Fixed writing prompts on the local chat model | `C-c o` |
+
+Anything that talks to a local model gets its provider from
+`jps-ellama-provider`, so model choice lives in one table.
 
 ### Local LLMs (ellama + Ollama)
 
@@ -344,14 +347,11 @@ without an SRT sandbox policy every tool call still asks for confirmation.
 Small models handle one-shot commands well but are unreliable at multi-step
 tool use; expect the 30B-class profiles to be the floor for that.
 
-The older `gptel` Ollama backend in `jps-ai.el` is still configured
-(`gemma4:31b`); the two can coexist.
+### Stoic Operator (local models only)
 
-### Stoic Operator (OpenAI/Ollama Integration)
+A personal cognitive assistant for writing, philosophy, zettelkasten work, and non-code AI tasks.
 
-A personal cognitive assistant for writing, philosophy, zettelkasten work, and non-code AI tasks. Supports interchangeable backends (OpenAI or Ollama) for flexibility and privacy.
-
-**Why not Claude Code for this?** This is for content where subject matter might trip safety filters - philosophy, mental health journaling, controversial topics, etc. Local Ollama models give you full control.
+**Why not Claude Code for this?** This is for content where subject matter might trip safety filters - philosophy, mental health journaling, controversial topics, etc. Local Ollama models give you full control, so `stoic-operator.el` refuses any provider that is not Ollama.
 
   Key        Action
   ---------  ----------------------------------------------------------
@@ -362,14 +362,13 @@ A personal cognitive assistant for writing, philosophy, zettelkasten work, and n
 
 **Available registers**: `operator-technical`, `partner-friendly`, `therapist-brief`, `public-readable`
 
-**Backend Configuration**:
-- **Ollama** (default): Local models, full privacy, no API costs
-  - Models: `mistral:7b-instruct-v0.2-q6_K`, `deepseek-r1:14b`, `llama3.1:8b`
-  - Configure in `personal/jps-operator.el`
-- **OpenAI**: API-based, requires `openai` CLI tool
-  - Switch by setting `stoic-operator-backend` to `'openai`
+**Model**: by default the chat model of the active jps-ellama profile
+(`qwen3.8:27b` on the current machines). Use a different Ollama model with
+`(setq stoic-operator-model "gemma4:31b")` in `~/.emacs.d/custom.el`; pull it
+yourself, since `jps-ellama-pull-models` only knows the profile's models.
+Replies stream into `*Stoic-Operator*` without blocking Emacs.
 
-**System Contract**: Place your custom system prompt in `~/.stoic-operator-system.txt` to define the AI's voice/personality across all commands.
+**System Contract**: Place your custom system prompt in `~/.stoic-operator-system.txt` to define the AI's voice/personality across all commands. It is sent as the real system prompt.
 
 ### Project Dashboard (`C-x p`)
 
@@ -630,12 +629,5 @@ creeping into git. Just my environment, reproducible and portable.
 
 ------------------------------------------------------------------------
 
-## Agent Shell
-Install claude-code-acp and put it in your PATH.
-
-```
-npm install @zed-industries/claude-code-acp
-```                                              
-                                                 
 🔥 *Future Me: if you're reading this because you broke your config
 again, don't worry --- just reclone and run setup. You'll be fine.*
