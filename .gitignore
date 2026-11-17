@@ -50,3 +50,6 @@ lsp/
 # Other temporary files
 *.dat
 *.log
+
+# Claude Code local settings (per-machine, never commit)
+.claude/settings.local.json
