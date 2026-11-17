@@ -162,7 +162,7 @@ Sets both the current frame and `default-frame-alist' so new frames inherit."
          (ab (frame-parameter frame 'alpha-background))
          (have-ab (numberp ab))
          (opaque (if have-ab 1.0 100))
-         (trans  (if have-ab 0.95 90)))
+         (trans  (if have-ab 0.80 80)))
     (if have-ab
         (let ((new-val (if (< ab 1.0) opaque trans)))
           (set-frame-parameter frame 'alpha-background new-val)

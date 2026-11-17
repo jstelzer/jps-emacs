@@ -70,12 +70,12 @@ executables available to Emacs. Installation methods and binary builds can diffe
 between macOS and Linux; the executable names and PATH requirements do not.
 Installing the Emacs packages does **not** install these external programs.
 
-| Executable | Purpose | Where to get it |
-| ---------- | ------- | --------------- |
-| `claude` | Claude Code CLI, including subscription login and the separate Claude Code IDE integration | [Claude Code](https://code.claude.com/docs/en/setup) |
-| `claude-agent-acp` | Claude ACP adapter used by agent-shell | [Claude Agent ACP](https://github.com/agentclientprotocol/claude-agent-acp), or `npm install -g @agentclientprotocol/claude-agent-acp` |
-| `codex-acp` | Codex ACP adapter with the built-in `acp_fs` filesystem bridge | Build/install [cola-io/codex-acp](https://github.com/cola-io/codex-acp) for your OS and CPU |
-| `gemini` | Gemini CLI, with native ACP support via `--experimental-acp` | [Gemini CLI](https://github.com/google-gemini/gemini-cli), or `npm install -g @google/gemini-cli` |
+| Executable         | Purpose                                                                                    | Where to get it                                                                                                                        |
+|--------------------|--------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `claude`           | Claude Code CLI, including subscription login and the separate Claude Code IDE integration | [Claude Code](https://code.claude.com/docs/en/setup)                                                                                   |
+| `claude-agent-acp` | Claude ACP adapter used by agent-shell                                                     | [Claude Agent ACP](https://github.com/agentclientprotocol/claude-agent-acp), or `npm install -g @agentclientprotocol/claude-agent-acp` |
+| `codex-acp`        | Codex ACP adapter with the built-in `acp_fs` filesystem bridge                             | Build/install [cola-io/codex-acp](https://github.com/cola-io/codex-acp) for your OS and CPU                                            |
+| `gemini`           | Gemini CLI, with native ACP support via `--experimental-acp`                               | [Gemini CLI](https://github.com/google-gemini/gemini-cli), or `npm install -g @google/gemini-cli`                                      |
 
 **The Codex adapter matters:** this configuration expects the **cola-io** adapter,
 not just any executable named `codex-acp`. Do not substitute the similarly named
@@ -265,12 +265,12 @@ pacman -S direnv           # Arch Linux
 
 Each way of talking to a model has one job:
 
-| Module | Job | Keys |
-| ------ | --- | ---- |
-| `jps-agent-shell.el` | Cloud agents (Claude, Codex, Gemini) over ACP | `C-c a` |
-| `jps-tools.el` (claude-code-ide) | Claude Code in a terminal with Emacs MCP tools | `C-c C-'` |
-| `jps-ellama.el` | Local models via Ollama; owns the per-machine model profiles | `C-c m` |
-| `stoic-operator.el` | Fixed writing prompts on the local chat model | `C-c o` |
+| Module                           | Job                                                          | Keys      |
+|----------------------------------|--------------------------------------------------------------|-----------|
+| `jps-agent-shell.el`             | Cloud agents (Claude, Codex, Gemini) over ACP                | `C-c a`   |
+| `jps-tools.el` (claude-code-ide) | Claude Code in a terminal with Emacs MCP tools               | `C-c C-'` |
+| `jps-ellama.el`                  | Local models via Ollama; owns the per-machine model profiles | `C-c m`   |
+| `stoic-operator.el`              | Fixed writing prompts on the local chat model                | `C-c o`   |
 
 Anything that talks to a local model gets its provider from
 `jps-ellama-provider`, so model choice lives in one table.
@@ -282,22 +282,22 @@ against a local [Ollama](https://ollama.com). It is the local counterpart to
 agent-shell: Claude, Codex and Gemini go through ACP; local models go through
 ellama.
 
-| Key | Action |
-| --- | ------ |
-| `C-c m` | ellama transient menu (chat, code, summarize, ...) |
-| `C-c C-c` (in chat) | send the last message in an org chat buffer |
-| `M-x jps-ellama-pull-models` | `ollama pull` the active profile's models |
-| `M-x jps-ellama-apply-profile` | re-point ellama after changing the profile |
+| Key                            | Action                                             |
+|--------------------------------|----------------------------------------------------|
+| `C-c m`                        | ellama transient menu (chat, code, summarize, ...) |
+| `C-c C-c` (in chat)            | send the last message in an org chat buffer        |
+| `M-x jps-ellama-pull-models`   | `ollama pull` the active profile's models          |
+| `M-x jps-ellama-apply-profile` | re-point ellama after changing the profile         |
 
 **Model profiles.** Which models are sensible depends entirely on the
 hardware, so the module picks a profile when ellama first loads:
 
-| Profile   | Machine                         | Coding model (MoE, fast)   | Chat model (dense)     | Context |
-| --------- | ------------------------------- | -------------------------- | ---------------------- | ------- |
-| `mac-48`  | M4 Max, 48GB unified            | `qwen3.6:35b-a3b-coding` (24GB) | `qwen3.8:27b` (18GB) | 32k |
-| `mac-64`  | M5, 64GB unified                | `qwen3.6:35b-a3b-q8_0` (39GB)   | `qwen3.8:27b-q8_0` (30GB) | 64k |
-| `cuda-32` | Linux, RTX 5090 32GB VRAM, 64GB RAM | `qwen3.6:35b-a3b-coding` (24GB) | `qwen3.8:27b` (18GB) | 32k |
-| `small`   | anything else                   | `gemma4:12b`               | `gemma4:12b`           | 16k |
+| Profile   | Machine                             | Coding model (MoE, fast)        | Chat model (dense)        | Context |
+|-----------|-------------------------------------|---------------------------------|---------------------------|---------|
+| `mac-48`  | M4 Max, 48GB unified                | `qwen3.6:35b-a3b-coding` (24GB) | `qwen3.8:27b` (18GB)      | 32k     |
+| `mac-64`  | M5, 64GB unified                    | `qwen3.6:35b-a3b-q8_0` (39GB)   | `qwen3.8:27b-q8_0` (30GB) | 64k     |
+| `cuda-32` | Linux, RTX 5090 32GB VRAM, 64GB RAM | `qwen3.6:35b-a3b-coding` (24GB) | `qwen3.8:27b` (18GB)      | 32k     |
+| `small`   | anything else                       | `gemma4:12b`                    | `gemma4:12b`              | 16k     |
 
 Detection: macOS reads `hw.memsize` (>=60GB is `mac-64`); Linux asks
 `nvidia-smi` for VRAM (>=24GB is `cuda-32`). Override per machine in
