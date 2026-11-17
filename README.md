@@ -34,6 +34,8 @@ wired in\
     works in X11/Wayland, runs fine over SSH\
 -   🤖 **Claude Code Menu** -- drop into AI-assisted coding from inside
     Emacs\
+-   🦙 **Local LLMs** -- ellama + Ollama with per-machine model profiles
+    (`C-c m`); see [Local LLMs](#local-llms-ellama--ollama)\
 -   🧘 **Stoic Operator** -- interchangeable OpenAI/Ollama integration for writing, philosophy, and non-code AI work\
 -   🌐 **REST client** -- built-in HTTP testing with token extraction and jq filtering\
 -   🗑 **Auto-save cleanup** -- saves buffers, prunes old autosaves (not
@@ -218,6 +220,7 @@ pacman -S direnv           # Arch Linux
     │   ├── jps-rest.el              # REST client & API tools
     │   ├── jps-project.el           # Smart project commands
     │   ├── jps-ai.el                # ChatGPT integration
+    │   ├── jps-ellama.el            # Local LLMs (ellama + Ollama profiles)
     │   ├── stoic-operator.el        # Stoic Operator (OpenAI/Ollama backend)
     │   └── jps-operator.el          # Stoic Operator config
     ├── site-lisp/
@@ -268,6 +271,81 @@ how to use
    `C-c g c`           → open a chat buffer anywhere.
    `C-c g r / C-c g b` → send region / whole buffer.
    `C-c g s`           → send region but keep your cursor where you were.
+
+### Local LLMs (ellama + Ollama)
+
+`personal/jps-ellama.el` sets up [ellama](https://github.com/s-kostyaev/ellama)
+against a local [Ollama](https://ollama.com). It is the local counterpart to
+agent-shell: Claude, Codex and Gemini go through ACP; local models go through
+ellama.
+
+| Key | Action |
+| --- | ------ |
+| `C-c m` | ellama transient menu (chat, code, summarize, ...) |
+| `C-c C-c` (in chat) | send the last message in an org chat buffer |
+| `M-x jps-ellama-pull-models` | `ollama pull` the active profile's models |
+| `M-x jps-ellama-apply-profile` | re-point ellama after changing the profile |
+
+**Model profiles.** Which models are sensible depends entirely on the
+hardware, so the module picks a profile when ellama first loads:
+
+| Profile   | Machine                         | Coding model (MoE, fast)   | Chat model (dense)     | Context |
+| --------- | ------------------------------- | -------------------------- | ---------------------- | ------- |
+| `mac-48`  | M4 Max, 48GB unified            | `qwen3.6:35b-a3b-coding` (24GB) | `qwen3.8:27b` (18GB) | 32k |
+| `mac-64`  | M5, 64GB unified                | `qwen3.6:35b-a3b-q8_0` (39GB)   | `qwen3.8:27b-q8_0` (30GB) | 64k |
+| `cuda-32` | Linux, RTX 5090 32GB VRAM, 64GB RAM | `qwen3.6:35b-a3b-coding` (24GB) | `qwen3.8:27b` (18GB) | 32k |
+| `small`   | anything else                   | `gemma4:12b`               | `gemma4:12b`           | 16k |
+
+Detection: macOS reads `hw.memsize` (>=60GB is `mac-64`); Linux asks
+`nvidia-smi` for VRAM (>=24GB is `cuda-32`). Override per machine in
+`~/.emacs.d/custom.el` with `(setq jps-ellama-profile 'mac-64)`, or edit
+`jps-ellama-profiles` to change models. On a fresh machine run
+`M-x jps-ellama-pull-models` once.
+
+**Sizing guidelines** (why the table looks like that):
+
+- **Memory needed ~= parameters x bits-per-weight / 8, plus KV cache for the
+  context.** A 32B model at Q4 is about 18-20GB; at Q8 about 34GB. Long
+  contexts add several GB on top, which is why `num_ctx` is set per profile
+  (Ollama's default context is too small for agent work).
+- **Apple Silicon: the GPU can wire ~75% of unified memory by default** --
+  about 36GB on a 48GB Mac and 48GB on a 64GB Mac. Raise it (until reboot) with
+  `sudo sysctl iogpu.wired_limit_mb=<MB>`, leaving 8GB+ for macOS and Emacs.
+- **NVIDIA: the model must fit in VRAM.** Anything that spills from the 5090's
+  32GB into system RAM runs many times slower, so the 64GB of system RAM on
+  the Linux box does not make 70B-class or Q8 35B models practical there.
+  The 5090 is the fastest machine for models that fit (~1.8TB/s bandwidth);
+  the 64GB Mac is the one that can run the larger quantizations.
+- **MoE models (`35b-a3b` = 35B total, ~3B active per token) are the speed
+  win**: they cost the memory of a 35B model but generate at roughly
+  small-model speed. They get the coding, naming and summarizing jobs. Dense
+  models are slower per token but steadier for long-form chat.
+- **Qwen3.8 is the chat/agent default.** It ships only as a dense 27B
+  (tuned for long-horizon agentic work, thinking on by default), so it
+  replaces `qwen3.6:27b`. There is no 3.8 MoE yet; when one lands it is the
+  obvious swap for the coding slot.
+- **Generation speed is bounded by memory bandwidth; prompt processing is
+  bounded by compute.** Agent loops resend large contexts every turn, so
+  prompt processing matters more than it looks. The M5's GPU matrix units
+  mainly speed up that phase.
+- **70B dense at Q4 (~40GB)** only becomes realistic on the 64GB Mac, with a
+  raised wired limit and a modest context. The profiles prefer a better
+  quantization of a 30B-class model over a squeezed 70B.
+- **Two models are rarely resident at once.** Ollama swaps between the chat
+  and coding models on demand; the first request after a switch pays a load
+  delay.
+- **On Macs, Ollama also publishes MLX builds** (`*-mlx`, `*-mxfp8` tags),
+  which are often faster on Apple Silicon. Try one by editing the profile;
+  the defaults stay on the standard GGUF tags.
+
+**Agent mode.** With `jps-ellama-agentic` (default `t`) the module calls
+`ellama-setup-agentic-coding`: tools are enabled with DLP enforcement, and
+without an SRT sandbox policy every tool call still asks for confirmation.
+Small models handle one-shot commands well but are unreliable at multi-step
+tool use; expect the 30B-class profiles to be the floor for that.
+
+The older `gptel` Ollama backend in `jps-ai.el` is still configured
+(`gemma4:31b`); the two can coexist.
 
 ### Stoic Operator (OpenAI/Ollama Integration)
 
