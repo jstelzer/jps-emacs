@@ -110,7 +110,7 @@
 
 (defun jps--go-package-dir ()
   "Return the directory containing the current Go file."
-  (when-let ((file (buffer-file-name)))
+  (when-let* ((file (buffer-file-name)))
     (file-name-directory file)))
 
 (defun jps-structlayout-pretty (type-name)

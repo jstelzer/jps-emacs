@@ -31,7 +31,7 @@
 
 (defun jps-hcl--project-root ()
   "Return project root or current directory."
-  (if-let ((proj (project-current nil)))
+  (if-let* ((proj (project-current nil)))
       (project-root proj)
     default-directory))
 
