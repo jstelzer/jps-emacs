@@ -39,6 +39,10 @@ wired in\
     (`C-c m`); see [Local LLMs](#local-llms-ellama--ollama)\
 -   🧘 **Stoic Operator** -- writing and philosophy prompts that run only on local models (`C-c o`)\
 -   🌐 **REST client** -- built-in HTTP testing with token extraction and jq filtering\
+-   🗄 **Databases** -- clutch query consoles for PostgreSQL and SQLite
+    (`C-x p Q`); see [Databases](#databases-clutch)\
+-   🔑 **1Password secrets** -- `op://` references and an auth-source
+    backend, so passwords never sit in Emacs config\
 -   🗑 **Auto-save cleanup** -- saves buffers, prunes old autosaves (not
     all of them, only crusty ones)
 
@@ -197,6 +201,9 @@ pacman -S fd               # Arch Linux
 # Per-project environment variables (direnv)
 brew install direnv        # macOS
 pacman -S direnv           # Arch Linux
+
+# Secrets (jps-op): 1Password CLI, with desktop-app integration enabled
+brew install 1password-cli # macOS
 ```
 
 **Note**: The config works fine without these tools --- you just won't get language-specific features until you install the relevant LSP servers and formatters.
@@ -210,6 +217,7 @@ pacman -S direnv           # Arch Linux
     ├── personal/
     │   ├── jps.el                   # Main loader (orchestrates all modules)
     │   ├── jps-core.el              # Foundation utilities & settings
+    │   ├── jps-op.el                # 1Password secrets (op CLI, auth-source)
     │   ├── jps-completion.el        # Company, flycheck, yasnippet
     │   ├── jps-lsp.el               # Eglot LSP configuration
     │   ├── jps-ui.el                # Vertico, consult, embark, treemacs
@@ -219,6 +227,7 @@ pacman -S direnv           # Arch Linux
     │   ├── jps-lang-python.el       # Python support (uv, basedpyright, ruff)
     │   ├── jps-debug.el             # DAP debugging (Go/Rust/Python)
     │   ├── jps-rest.el              # REST client & API tools
+    │   ├── jps-db.el                # Databases (clutch: PostgreSQL, SQLite)
     │   ├── jps-project.el           # Smart project commands
     │   ├── jps-agent-shell.el       # Cloud agents over ACP (Claude, Codex, Gemini)
     │   ├── jps-ellama.el            # Local LLMs (ellama + Ollama profiles)
@@ -397,6 +406,7 @@ These live under the built-in `project-prefix-map`:
   `N`   Project notes
   `S`   Shell (vterm) in project root
   `A`   API scratchpad (api.http)
+  `Q`   Query console on the project's database
   `r`   Recompile last command
 
 #### Per-project settings (`.dir-locals.el`)
@@ -462,6 +472,47 @@ When editing `.http` files:
   `C-c C-b`    Set bearer token from response
   `C-c C-e`    Set environment (dev/stage/prod)
   `C-c C-j`    Filter response with jq
+
+### Databases (clutch)
+
+[clutch](https://github.com/LuciusChen/clutch) gives SQL query consoles
+with a result grid, staged row edits and an ER view.  Only PostgreSQL
+(pure-elisp `pgsql.el`) and SQLite (built in) are installed; MySQL and the
+JDBC backends are left out on purpose.
+
+Connections live in `~/.emacs.d/custom.el` without passwords.  When a
+connection has no `:password`, clutch asks auth-source, and `jps-op`
+answers from 1Password for the hosts you list:
+
+```elisp
+(setq clutch-connection-alist
+      '(("app-dev" . (:backend pg :host "localhost" :port 5432
+                      :user "app" :database "app_dev"))))
+
+;; ((HOST [USER [PORT]]) . "op://Vault/Item/field"); first match wins
+(setq jps-op-references
+      '((("localhost" "app") . "op://Dev/app-db-dev/password")))
+```
+
+Hosts missing from `jps-op-references` never reach `op`, so other
+auth-source lookups (forge, smtpmail) don't prompt for an unlock.  The
+same table works for any auth-source consumer, and `(jps-op-read
+"op://...")` reads a reference directly.
+
+A project picks its connection in `.dir-locals.el` (`C-x p Q` opens it,
+or prompts when unset):
+
+```elisp
+((nil . ((jps-db-connection . "app-dev"))))
+```
+
+  Key / command                  Action
+  ------------------------------ -----------------------------------
+  `C-x p Q`                      Console on the project's connection
+  `M-x clutch-query-console`     Console on any saved connection
+  `M-x clutch-query-sqlite-file` Console on a SQLite file
+  `C-c C-c` (in a console)       Run region or statement at point
+  `C-c ?` (in a console)         Main menu
 
 ------------------------------------------------------------------------
 

@@ -16,6 +16,7 @@
 (defconst jps-modules
   '(;; Core layer - foundation (no dependencies)
     jps-core          ; Core utilities & settings (always loaded)
+    jps-op            ; 1Password secrets (op CLI) + auth-source backend
     jps-completion    ; Company, flycheck, yasnippet
 
     ;; IDE layer - development environment
@@ -35,6 +36,7 @@
 
     ;; Productivity layer - optional tools
     jps-rest          ; REST/API development (restclient, jq, graphql)
+    jps-db            ; Databases: clutch (PostgreSQL, SQLite)
     jps-project       ; Smart project commands (test/build/deploy)
     jps-notes         ; Org-roam knowledge management
     jps-ellama        ; Local LLMs: ellama + Ollama, per-host model profile
