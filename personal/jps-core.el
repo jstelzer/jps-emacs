@@ -196,6 +196,27 @@ Sets both the current frame and `default-frame-alist' so new frames inherit."
   (when-let* ((proj (project-current t)))
     (expand-file-name (project-root proj))))
 
+(defun jps-project-local (symbol &optional root)
+  "Return SYMBOL's directory-local value for the project at ROOT, or nil.
+ROOT defaults to the current project.  Dashboard commands often run
+from buffers that never applied the project's .dir-locals.el, so this
+reads them directly.
+
+If the current buffer is inside ROOT and already has SYMBOL as a local
+variable (e.g. from a mode-specific dir-locals entry), that value wins.
+Otherwise only the nil (all modes) entries apply.  Unsafe values go
+through the usual `enable-local-variables' prompt."
+  (let ((root (file-name-as-directory
+               (expand-file-name (or root (jps--project-root))))))
+    (if (and (local-variable-p symbol)
+             (file-in-directory-p default-directory root))
+        (symbol-value symbol)
+      (with-temp-buffer
+        (setq default-directory root)
+        (hack-dir-local-variables-non-file-buffer)
+        (when (local-variable-p symbol)
+          (symbol-value symbol))))))
+
 (defun jps--read-file-first-line (f)
   "Read the first line of file F, returning it trimmed."
   (when (file-readable-p f)

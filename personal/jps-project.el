@@ -49,11 +49,40 @@
         (magit-status-setup-buffer default-directory))
     (user-error "Magit not installed")))
 
+;;; ============================================================================
+;;; Per-project command overrides (.dir-locals.el)
+;;; ============================================================================
+;; Set these in a project's .dir-locals.el (or a directory class in
+;; custom.el) to skip the guessing below:
+;;
+;;   ((nil . ((jps-project-test-command . "just test-unit")
+;;            (jps-project-build-command . "go build -tags prod ./..."))))
+;;
+;; They are shell commands, so they are deliberately NOT marked safe:
+;; Emacs asks before using them, and `!' remembers your answer.
+
+(defcustom jps-project-test-command nil
+  "Shell command for `jps-project-test'.  nil means detect it."
+  :type '(choice (const :tag "Detect" nil) string)
+  :group 'convenience)
+
+(defcustom jps-project-build-command nil
+  "Shell command for `jps-project-build'.  nil means detect it."
+  :type '(choice (const :tag "Detect" nil) string)
+  :group 'convenience)
+
+(defcustom jps-project-deploy-command nil
+  "Shell command for `jps-project-deploy'.  nil means detect it."
+  :type '(choice (const :tag "Detect" nil) string)
+  :group 'convenience)
+
 (defun jps-project-test ()
-  "Smart test command based on project type."
+  "Smart test command based on project type.
+Uses `jps-project-test-command' from the project's dir-locals if set."
   (interactive)
   (let* ((root (jps--project-root))
          (cmd (cond
+               ((jps-project-local 'jps-project-test-command root))
                ((file-exists-p (expand-file-name "go.mod" root)) "go test ./...")
                ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo test")
                ((jps--file-exists-any root "pytest.ini" "pyproject.toml" "tox.ini") "pytest -q")
@@ -63,10 +92,12 @@
     (jps--run-in-project cmd)))
 
 (defun jps-project-build ()
-  "Smart build command based on project type."
+  "Smart build command based on project type.
+Uses `jps-project-build-command' from the project's dir-locals if set."
   (interactive)
   (let* ((root (jps--project-root))
          (cmd (cond
+               ((jps-project-local 'jps-project-build-command root))
                ((file-exists-p (expand-file-name "go.mod" root)) "go build ./...")
                ((file-exists-p (expand-file-name "Cargo.toml" root)) "cargo build")
                ((jps--file-exists-any root "pyproject.toml" "setup.cfg" "setup.py") "python -m build")
@@ -76,7 +107,8 @@
     (jps--run-in-project cmd)))
 
 (defun jps-project-deploy ()
-  "Best-guess deploy: justfile deploy > Makefile deploy > scripts/deploy.sh."
+  "Best-guess deploy: justfile deploy > Makefile deploy > scripts/deploy.sh.
+Uses `jps-project-deploy-command' from the project's dir-locals if set."
   (interactive)
   (let* ((root (jps--project-root))
          (just-files (seq-filter (lambda (f) (file-exists-p (expand-file-name f root)))
@@ -84,6 +116,7 @@
          (mk (expand-file-name "Makefile" root))
          (script (expand-file-name "scripts/deploy.sh" root))
          (cmd (cond
+               ((jps-project-local 'jps-project-deploy-command root))
                ((and just-files
                      (let ((jf (expand-file-name (car just-files) root)))
                        (with-temp-buffer

@@ -5,8 +5,9 @@ GUI and terminal, and gives me a **modern IDE inside Emacs without the
 kitchen sink**.
 
 **Now with modular architecture** -- each feature lives in its own file.
-Don't use Rust? Comment out one line. Want to add Julia support? Drop in
-a new module. Clean separation, easy maintenance.
+Don't use Rust on this machine? List it in `jps-disabled-modules`. Want to
+add Julia support? Drop in a new module and add it to `jps-modules`.
+Need one project to behave differently? Use `.dir-locals.el`.
 
 Clone it, run one script, and you've got:\
 - A project dashboard on `C-x p` with test/build/deploy/vterm/notes
@@ -231,7 +232,13 @@ pacman -S direnv           # Arch Linux
     ├── .gitignore                   # Ignores caches & generated stuff
     └── README.md                    # This file
 
-**Modular Design**: Each module can be disabled by commenting out its `(require ...)` line in `personal/jps.el`. For example, if you don't use Rust, comment out `(require 'jps-lang-rust)`.
+**Modular Design**: `personal/jps.el` loads every module in `jps-modules`, in order. To skip some on one machine, set `jps-disabled-modules` in `~/.emacs.d/custom.el`, which loads first:
+
+```elisp
+(setq jps-disabled-modules '(jps-lang-rust jps-notes))
+```
+
+`jps-core` always loads. `jps-swift` is disabled by default off macOS. A module that another enabled module requires still loads (`stoic-operator` pulls in `jps-ellama`). Unknown names produce a warning at startup.
 
 ------------------------------------------------------------------------
 
@@ -391,6 +398,33 @@ These live under the built-in `project-prefix-map`:
   `S`   Shell (vterm) in project root
   `A`   API scratchpad (api.http)
   `r`   Recompile last command
+
+#### Per-project settings (`.dir-locals.el`)
+
+`T`, `B` and `D` guess the command from marker files (`go.mod`, `Cargo.toml`, `justfile`, ...). To override the guess for one project, set the command in its `.dir-locals.el`:
+
+```elisp
+((nil . ((jps-project-test-command   . "just test-unit")
+         (jps-project-build-command  . "go build -tags prod ./...")
+         (jps-project-deploy-command . "scripts/release.sh staging"))))
+```
+
+These are shell commands, so they are not marked safe. Emacs asks the first time, and answering `!` remembers the value. Use the `nil` (all modes) key: the dashboard reads these with `jps-project-local`, which only sees mode-specific entries when you run it from a buffer already in that mode.
+
+Anything else that is buffer-local works the same way, for example `eglot-workspace-configuration` (gopls build tags, basedpyright strictness), `fill-column` or `compile-command`.
+
+There are two ways to keep these files out of a repo you don't own:
+
+- `.dir-locals-2.el` is read alongside `.dir-locals.el`. Add it to your global gitignore.
+- A directory class in `~/.emacs.d/custom.el` puts no file in the repo at all:
+
+  ```elisp
+  (dir-locals-set-class-variables 'work-monorepo
+    '((nil . ((jps-project-test-command . "bazel test //...")))))
+  (dir-locals-set-directory-class "~/work/monorepo/" 'work-monorepo)
+  ```
+
+Other modules can read project settings with `(jps-project-local 'some-var)`.
 
 ### Eglot (LSP) Commands
 
@@ -593,7 +627,7 @@ Add your own debug configurations:
 
 -   **Machine-specific tweaks** live in `~/.emacs.d/custom.el` (not versioned)\
 -   **Modular configuration** lives in `personal/jps-*.el` files:
-    -   Add/remove features by editing `personal/jps.el` (just comment out modules you don't need)
+    -   Add modules to `jps-modules` in `personal/jps.el`; skip them per machine with `jps-disabled-modules` in `custom.el`
     -   Each module is self-contained and documented
     -   No dependencies between language modules (jps-lang-*)
     -   Core modules (jps-core, jps-lsp, jps-ui) are required by other modules
